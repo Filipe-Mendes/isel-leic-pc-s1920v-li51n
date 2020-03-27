@@ -1,24 +1,24 @@
-Anatomia de um Sincronizador Genérico
+#Sincronização
 
 - Coordenação da execução de threads que de alguma forma cooperam.
   Uma forma de sincronização que pode à primeira vista ser diferente
   do que enunciei é a sincronização com as operadores de I/O (cenário
   onde a cooperação entre thread é involuntária)
 
-- Duas operações básicas para implementar a sincronização: Acquire e Release
+- Duas operações básicas para implementar a sincronização: **Acquire** e
+**Release**
 
-  Acquire: operação potencialmente bloqueante e que permite à thread
+-**Acquire**: operação potencialmente bloqueante e que permite à *thread*
   invocante sincronizar-se com a ocorrência de um "evento".
-
-  Release: operação não bloqueante que reporta a ocorrência de "eventos"
-  que são aguardados pela(s) thread(s) blouqeadas pela respectiva 
-  operação Acquire.
+-**Release**: operação não bloqueante que reporta a ocorrência de "eventos"
+  que são aguardados pela(s) thread(s) blouqeadas nas operaçoes **Acquire**.
 
   Bounded-Buffer com capacidade limitada
   Operações básicas: put(T) e T take()
 
+#Anatomia de um Sincronizador Genérico
 
-class SynchState {}	// estado de sincronização, que representa o estado do sincronizador
+`class SynchState {}`	// estado de sincronização, que representa o estado do sincronizador
 exemplos:
 Semáforo: contador com o número de autorizações sob custódio do semáforo
 Manual-reset event : booleano que indica se o evento está ou não sinalizado
