@@ -21,11 +21,11 @@
 ``` C#
 class SynchState {}	// representa o estado do sincronizador
 ```
-/*
+
 #### Exemplos:
 - Semáforo: contador com o número de autorizações sob custódio do semáforo
-- Manual-reset event : booleano que indica se o evento está ou não sinalizado
-- Unbounded-message queue: lista das mensagens disponíveis para recepção
+- *Manual-reset event* : booleano que indica se o evento está ou não sinalizado
+- *Unbounded-message queue*: lista das mensagens disponíveis para recepção
 
 ``` C#
 public class InitializationArgs {}	// parâmetros do constructor
@@ -37,6 +37,7 @@ class AcquireResult {}	// tipo do resultado da operação acquire
 class ReleaseArgs {}	// tipo do argumento da operação release
 ```
 
+```C#
 class GenericSynchronizerMonitorStylePseudoCode {
 	// the lock
 	private Lock _lock = new Lock();
@@ -49,25 +50,23 @@ class GenericSynchronizerMonitorStylePseudoCode {
 	
 	// initilize
 	public GenericSynchronizerMonitorStylePseudoCode(Initialization initialState) {
-		initialize "synchState" according to information specified by "initialState"
+		initialize "synchState" according to information specified by "initialState";
 	}
 	
 	// check if synchronization state allows immediate acquire
 	private bool CanAcquire(AcquireArgs acquireArgs) {
-		returns true if "syncState" statisfies an immediate acquire according to "acquireArgs"
+		returns true if "syncState" statisfies an immediate acquire according to "acquireArgs";
 	}
 	
 	// executes the side effect processing related to successful acquire
 	private AcquireResult AcquireSideEffect(AcquireArgs acquireArgs) {
-		update "synchState" according to "acquireArgs" after a successful acquire
-		return "the-proper-acquire-result"
+		update "synchState" according to "acquireArgs" after a successful acquire;
+		return "the-proper-acquire-result";
 	}
-	
-	//... INTERVALO
 	
 	// update synchronization state due to a release operation
 	private void UpdateStateOnRelease(ReleaseArgs releaseArgs) {
-		update "synchState" according to "releaseArgs"
+		update "synchState" according to "releaseArgs";
 	}
 	
 	// do the Acquire operation
@@ -80,7 +79,7 @@ class GenericSynchronizerMonitorStylePseudoCode {
 				block the current until it is waked by a releaser thread;
 				_lock.ReAcquire(depth);
 			}
-			return AcquireSideEffect(acquireArgs)
+			return AcquireSideEffect(acquireArgs);
 		} finally {
 			_lock.Release();
 		}
@@ -91,13 +90,14 @@ class GenericSynchronizerMonitorStylePseudoCode {
 		_lock.Acquire();
 		try {
 			UpdateStateOnRelease(releaseArgs);
-			wakeup all the blocked threads that can have its acquire satisfied
+			wakeup all the blocked threads that can have its acquire satisfied;
 			with the new state of "syncState";
 		} finally {
 			_lock.Release();
 		}
 	}
 }
+```
 
 
 
