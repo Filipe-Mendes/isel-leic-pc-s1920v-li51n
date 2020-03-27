@@ -7,7 +7,7 @@
   de forma involuntária para sinalizar a conclusão das operações de I/O -
   na medida em que processam as interrupções e sinalizam as conclusões de I/O)
   
-####As duas operações básicas que suportam a sincronização:
+#### As duas operações básicas que suportam a sincronização:
 - **Acquire**: operação potencialmente bloqueante e que permite à *thread*
   invocante sincronizar-se com a ocorrência de um "evento".
   
