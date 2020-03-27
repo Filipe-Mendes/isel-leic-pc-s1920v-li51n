@@ -1,17 +1,17 @@
 # Sincronização
 
 - Coordenação da execução de *threads* que de alguma forma cooperam.
-  Uma forma de sincronização que pode à primeira vista ser diferente
-  do que enunciei é a sincronização com as operações de I/O (cenário
-  onde a cooperação entre *threads* é involuntária)
-
-- Duas operações básicas para implementar a sincronização: **Acquire** e
-**Release**
-
--**Acquire**: operação potencialmente bloqueante e que permite à *thread*
+  Uma forma de sincronização que pode à primeira vista não ser
+  percebida como cooperação entre *threads* é a sincronização subjacente
+  as operações de I/O (neste cenário podem ser mobillizadas *threads*
+  de forma involuntária para sinalizar a conclusão das operações de I/O -
+  na medida em que processam as interrupções e sinalizam as conclusões de I/O)
+  
+####As duas operações básicas que suportam a sincronização:
+- **Acquire**: operação potencialmente bloqueante e que permite à *thread*
   invocante sincronizar-se com a ocorrência de um "evento".
   
--**Release**: operação não bloqueante que reporta a ocorrência de "eventos"
+- **Release**: operação não bloqueante que reporta a ocorrência de "eventos"
   que são aguardados pela(s) thread(s) blouqeadas nas operaçoes **Acquire**.
 
 # Anatomia de um Sincronizador Genérico
@@ -37,7 +37,7 @@ class AcquireResult {}	// tipo do resultado da operação acquire
 class ReleaseArgs {}	// tipo do argumento da operação release
 ```
 
-### Sincronizador Genérico "Estilo Monitor"
+#### Sincronizador Genérico "Estilo Monitor"
 
 ```C#
 class GenericSynchronizerMonitorStylePseudoCode {
