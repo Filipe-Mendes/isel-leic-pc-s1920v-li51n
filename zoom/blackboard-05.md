@@ -7,7 +7,7 @@
   de forma involuntária para sinalizar a conclusão das operações de I/O -
   na medida em que processam as interrupções e sinalizam as conclusões de I/O)
   
-#### As duas operações básicas que suportam a sincronização:
+#### Operações básicas que suportam a sincronização:
 - **Acquire**: operação potencialmente bloqueante e que permite à *thread*
   invocante sincronizar-se com a ocorrência de um "evento".
   
@@ -16,13 +16,13 @@
 
 # Anatomia de um Sincronizador Genérico
 
-### Classes Auxiliares
+##### Classes Auxiliares
 
 ``` C#
 class SynchState {}	// representa o estado do sincronizador
 ```
 
-#### Exemplos de `SynchState`:
+###### Exemplos de `SynchState`:
 - Semáforo: contador com o número de autorizações sob custódio do semáforo
 - *Manual-reset event* : booleano que indica se o evento está ou não sinalizado
 - *Unbounded-message queue*: lista das mensagens disponíveis para recepção
