@@ -48,7 +48,7 @@ class GenericSynchronizerMonitorStylePseudoCode {
 	// the synchronization state
 	private SynchState synchState;
 	
-	// initilize
+	// initialize
 	public GenericSynchronizerMonitorStylePseudoCode(Initialization initialState) {
 		initialize "synchState" according to information specified by "initialState";
 	}
