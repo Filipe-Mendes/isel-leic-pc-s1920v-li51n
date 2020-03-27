@@ -37,6 +37,8 @@ class AcquireResult {}	// tipo do resultado da operação acquire
 class ReleaseArgs {}	// tipo do argumento da operação release
 ```
 
+### Sincronizador Genérico "Estilo Monitor"
+
 ```C#
 class GenericSynchronizerMonitorStylePseudoCode {
 	// the lock
