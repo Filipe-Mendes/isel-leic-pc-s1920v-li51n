@@ -22,7 +22,7 @@
 class SynchState {}	// representa o estado do sincronizador
 ```
 
-#### Exemplos de SynchState:
+#### Exemplos de `SynchState`:
 - Semáforo: contador com o número de autorizações sob custódio do semáforo
 - *Manual-reset event* : booleano que indica se o evento está ou não sinalizado
 - *Unbounded-message queue*: lista das mensagens disponíveis para recepção
