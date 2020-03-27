@@ -74,11 +74,15 @@
 
 ### Monitores Implícitos em .NET
  
- - São associados de forma *lazy* às instâncias dos tipos referência, quando se invoca a respectiva funcionalidade.
+ - São associados de forma *lazy* às instâncias dos tipos referência (objectos), quando se invoca a respectiva funcionalidade.
  
  - Suportam apenas uma variável condição anónima.
  
  - Estão acessíveis usando os métodos estáticos da classe `System.Threading.Monitor`, nomeadamente: `Monitor.Enter`, `Monitor.TryEnter`, `Monitor.Exit`, `Monitor.Wait`, `Monitor.Pulse` e `Monitor.PulseAll`. O código dos "procedimentos de entrada" (secções críticas) pode ser defindo com a construção `lock` do C# que é equivalente aos blocks `synchronized`no *Java*.
  
  - Quando a notificação de uma *thread* bloqueada ocorrer em simultâneo com a interrupção dessa *thread* pode ser reportada a interrupção e ocultada a notificação. **Assim, em situações em que se notifica apenas uma *thread* pode ser necessário capturar a excepção de interrupção para regenerar uma eventual notificação que possa ter ocorrido em simultâneo**.
+
+### Extensão aos Monitores Implícitos em .NET
+
+ - A classe MonitorEx, disponível em `src/utils/MonitorEx.cs` implementa uma extensão aos monitores implícitos do .NET que suportam monitores com múltiplas condições suportados nos monitores implícitos de múltiplos objectos. Um dos objectos representa o monitor e uma variável condição e os outros apenas representam variáveis condição. Os método `MonitorEx.Wait`, `MonitorEx.Pulse` e `MonitorEx.PulseAll` recebem como argumentos dois objectos: o objecto que representa o monitor e o objecto que representa a condição; quando se está a usar a condição do objecto que representa o monitor os dois objectos são iguais.
  
