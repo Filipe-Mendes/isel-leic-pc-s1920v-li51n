@@ -1,4 +1,4 @@
-#Sincronização
+# Sincronização
 
 - Coordenação da execução de threads que de alguma forma cooperam.
   Uma forma de sincronização que pode à primeira vista ser diferente
@@ -10,21 +10,24 @@
 
 -**Acquire**: operação potencialmente bloqueante e que permite à *thread*
   invocante sincronizar-se com a ocorrência de um "evento".
+  
 -**Release**: operação não bloqueante que reporta a ocorrência de "eventos"
   que são aguardados pela(s) thread(s) blouqeadas nas operaçoes **Acquire**.
 
   Bounded-Buffer com capacidade limitada
   Operações básicas: put(T) e T take()
 
-#Anatomia de um Sincronizador Genérico
+# Anatomia de um Sincronizador Genérico
+``` C#
+class SynchState {}	// representa o estado do sincronizador
+```
+/*
+#### Exemplos:
+- Semáforo: contador com o número de autorizações sob custódio do semáforo
+- Manual-reset event : booleano que indica se o evento está ou não sinalizado
+- Unbounded-message queue: lista das mensagens disponíveis para recepção
 
-`class SynchState {}`	// estado de sincronização, que representa o estado do sincronizador
-exemplos:
-Semáforo: contador com o número de autorizações sob custódio do semáforo
-Manual-reset event : booleano que indica se o evento está ou não sinalizado
-unbounded-message queue: lista das mensagens disponíveis para recepção
-etc.
-
+``` C#
 public class InitializationArgs {}	// parâmetros do constructor
 
 class AcquireArgs {}	// tipo do argumento da operação acquire
@@ -32,6 +35,7 @@ class AcquireArgs {}	// tipo do argumento da operação acquire
 class AcquireResult {}	// tipo do resultado da operação acquire
 
 class ReleaseArgs {}	// tipo do argumento da operação release
+```
 
 class GenericSynchronizerMonitorStylePseudoCode {
 	// the lock
