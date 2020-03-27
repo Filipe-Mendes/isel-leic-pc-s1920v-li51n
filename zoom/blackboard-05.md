@@ -1,9 +1,9 @@
 # Sincronização
 
-- Coordenação da execução de threads que de alguma forma cooperam.
+- Coordenação da execução de *threads* que de alguma forma cooperam.
   Uma forma de sincronização que pode à primeira vista ser diferente
-  do que enunciei é a sincronização com as operadores de I/O (cenário
-  onde a cooperação entre thread é involuntária)
+  do que enunciei é a sincronização com as operações de I/O (cenário
+  onde a cooperação entre *threads* é involuntária)
 
 - Duas operações básicas para implementar a sincronização: **Acquire** e
 **Release**
@@ -14,15 +14,15 @@
 -**Release**: operação não bloqueante que reporta a ocorrência de "eventos"
   que são aguardados pela(s) thread(s) blouqeadas nas operaçoes **Acquire**.
 
-  Bounded-Buffer com capacidade limitada
-  Operações básicas: put(T) e T take()
-
 # Anatomia de um Sincronizador Genérico
+
+### Classes Auxiliares
+
 ``` C#
 class SynchState {}	// representa o estado do sincronizador
 ```
 
-#### Exemplos:
+#### Exemplos de SynchState:
 - Semáforo: contador com o número de autorizações sob custódio do semáforo
 - *Manual-reset event* : booleano que indica se o evento está ou não sinalizado
 - *Unbounded-message queue*: lista das mensagens disponíveis para recepção
@@ -98,6 +98,7 @@ class GenericSynchronizerMonitorStylePseudoCode {
 	}
 }
 ```
+
 
 
 
