@@ -34,15 +34,15 @@
 
 - A segunda vantagem é ser possível acrescentar mais três formas de acordar as *threads* bloqueadas nas variáveis condição: (a) por ter sido excedido o limite de tempo especificado para espera (*timeout*); (b) interrupção ou aborto da *thread* bloqueada; (c) fazer *broadcast* numa condição, isto é, notificar todas as *threads* nela bloqueadas.
 
-### Monitores Implícitos em Java
+### Monitores Implícitos em *Java*
  
  - São associados de forma *lazy* aos objectos, quando se invoca a respectiva funcionalidade.
  
- - Suportam uma variável condição anónima.
+ - Suportam apenas uma variável condição anónima.
  
- - O código dos "procedimentos de entrada" (secções críticas) é definido dentro de métodos ou blocos marcados com `synchronized`. A funcionalidade das variáveis condição está acessivel usando os seguintes métodos da classe `java.lang.Object`: `wait`, `notify` e `notifyAll`.
+ - O código dos "procedimentos de entrada" (secções críticas) é definido dentro de métodos ou blocos marcados com `synchronized`. A funcionalidade das variáveis condição está acessivel usando os seguintes métodos da classe `java.lang.Object`: `Object.wait`, `Object.notify` e `Object.notifyAll`.
  
- - Quando a notificação de uma *thread* bloqueada ocorrem em simultâneo com uma notificação é reportada primeiro a notificação e só depois a interrupção.
+ - Quando a notificação de uma *thread* bloqueada ocorrer em simultâneo com a interrupção dessa *thread* é reportada sempre a notificação e só depois, eventualmente, a interrupção.
 
 ### Monitores Explícitos em Java
  
@@ -59,15 +59,26 @@
    lock.unlock();
  }
  ```
- (secções críticas) é definido dentro de métodos ou blocos marcados com `synchronized`. A funcionalidade das variáveis condição está acessivel usando os seguintes métodos da classe `java.lang.Object`: `wait`, `notify` e `notifyAll`.
- 
- - Quando a notificação de uma *thread* bloqueada ocorrem em simultâneo com uma notificação é reportada primeiro a notificação e só depois a interrupção.
- 
- 
 
-### Monitores Implícitos em .NET e Java
+- As variáveis condição são acedidas através dos métodos definidos na interface `java.util.concurrent.locks.Condition`, nomeadamente: `Condition.await`, `Condition.awaitNanos`, `Condition.signal` e `Condition.signalAll`.
  
- - São associados de forma *lazy* aos objectos (tipos referência em .NET).
+ - Quando a notificação de uma *thread* bloqueada ocorrer em simultâneo com a interrupção dessa *thread* é reportada sempre a notificação e só depois, eventualmente, a interrupção. 
+
+ - São associados de forma *lazy* aos objectos, quando se invoca a respectiva funcionalidade.
  
- - Apenas suportam uma variável condição por monitor
-  
+ - Suportam uma variável condição anónima.
+ 
+ - O código dos "procedimentos de entrada" (secções críticas) é definido dentro de métodos ou blocos marcados com `synchronized`. A funcionalidade das variáveis condição está acessivel usando os seguintes métodos da classe `java.lang.Object`: `Object.wait`, `Object.notify` e `Object.notifyAll`.
+ 
+ - Quando a notificação de uma *thread* bloqueada ocorrer em simultâneo com a interrupção dessa *thread* é reportada sempre a notificação e só depois, eventualmente, a interrupção.
+
+### Monitores Implícitos em .NET
+ 
+ - São associados de forma *lazy* às instâncias dos tipos referência, quando se invoca a respectiva funcionalidade.
+ 
+ - Suportam apenas uma variável condição anónima.
+ 
+ - Estão acessíveis usando os métodos estáticos da classe `System.Threading.Monitor`, nomeadamente: `Monitor.Enter`, `Monitor.TryEnter`, `Monitor.Exit`, `Monitor.Wait`, `Monitor.Pulse` e `Monitor.PulseAll`. O código dos "procedimentos de entrada" (secções críticas) pode ser defindo com a construção `lock` do C# que é equivalente aos blocks `synchronized`no *Java*.
+ 
+ - Quando a notificação de uma *thread* bloqueada ocorrer em simultâneo com a interrupção dessa *thread* pode ser reportada a interrupção e ocultada a notificação. **Assim, em situações em que se notifica apenas uma *thread* pode ser necessário capturar a excepção de interrupção para regenerar uma eventual notificação que possa ter ocorrido em simultâneo**.
+ 
