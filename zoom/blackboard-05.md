@@ -14,7 +14,7 @@
 - **Release**: operação não bloqueante que reporta a ocorrência de "eventos"
   que são aguardados pela(s) thread(s) blouqeadas nas operaçoes **Acquire**.
 
-# Anatomia de um Sincronizador Genérico
+## Anatomia de um Sincronizador Genérico
 
 ##### Classes Auxiliares
 
