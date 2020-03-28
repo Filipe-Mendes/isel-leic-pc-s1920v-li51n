@@ -1,104 +1,127 @@
-using System;
-using System.Threading;
+import java.util.concurrent.locks.*;
 
 class ShuttingDownThread {
-	private volatile bool shuttingDown;
 	private Thread thread;
 
 	public ShuttingDownThread() {
-		// create a worker thread
-		thread = new Thread(() => {
-			Console.WriteLine("-- thread started...");
+		// start to worker thread
+		thread = new Thread(() -> {
+			System.out.println("-- thread started...");
 			int cycle = 0;
 			do {
 				try {
 					// do something that can block the thread
-					Thread.Sleep(1000);
-					Console.Write($"{++cycle} ");
+					Thread.sleep(1000);
+					System.out.print(++cycle);
 
-				} catch (ThreadInterruptedException) {
-					Console.WriteLine("\n-- thread interrupted...");
+				} catch (InterruptedException ie) {
+					System.out.println("\n-- thread interrupted...");
 					break;
 				}
-			} while (!shuttingDown);
+			} while (!Thread.interrupted());
 			// execute graceful shutdown
-			Console.WriteLine("-- thread exiting...");
+			System.out.println("-- thread exiting...");
 		});
 	}
 	
 	// start thread...
-	public void Start() {
-		thread.Start();
+	public void start() {
+		thread.start();
 	}
 
 	// other methods
 
 	// shuts down the worker thread ignoring interrupts
-	public void Shutdown() {
-		bool interrupted = false;
-		shuttingDown = true;
-		thread.Interrupt();
+	public void shutdown() {
+		boolean interrupted = false;
+		thread.interrupt();
 		do {
 			try {
-				thread.Join();
+				thread.join();
 				break;
-			} catch (ThreadInterruptedException) {
+			} catch (InterruptedException ie) {
 				interrupted = true;
 			}
 		} while (true);
 		if (interrupted)
-			Thread.CurrentThread.Interrupt();
+			Thread.currentThread().interrupt();
 	}
 }
 
 class UseInterruptToCancel {
-	public static void Execute() {
+	public static void execute() throws InterruptedException {
 		ShuttingDownThread thread = new ShuttingDownThread();
-		thread.Start();
-		Thread.Sleep(10000);
-		thread.Shutdown();
-		Console.WriteLine("-- main exiting...");
+		thread.start();
+		Thread.sleep(5000);
+		thread.shutdown();
+		System.out.println("-- main exiting...");
 	}
 }
 
 class InterruptWhileWaitingOnImplicitMonitor {
-	public static void Execute()  {
+	public static void execute() throws InterruptedException {
 		Object monitor = new Object();
-		Thread t = new Thread(() => {
-			lock(monitor) {
+		Thread t = new Thread(() -> {
+			synchronized(monitor) {
 				try {
-					Monitor.Wait(monitor);
-					Console.WriteLine("-- thread was notified!");
-				} catch (ThreadInterruptedException) {
-					Console.WriteLine("*** thread was interrupted while waiting!");
+					monitor.wait();
+					System.out.println("-- thread was notified!");
+				} catch (InterruptedException ie) {
+					System.out.println("*** thread was interrupted while waiting!");
+					return;
 				}
-				try {
-					Thread.Sleep(0);
-					Console.WriteLine("-- Thread.Interrupted: false");
-					
-				} catch (ThreadInterruptedException) {
-					Console.WriteLine("-- Thread.Interrupted: true");
-				}
+				System.out.println("-- Thread.interrupted(): " + Thread.interrupted());
 			}
 		});
-		t.Start();
-		Thread.Sleep(10000);
-		lock(monitor) {
-			Monitor.Pulse(monitor);
-			t.Interrupt();
+		t.start();
+		Thread.sleep(100);
+		synchronized(monitor) {
+			monitor.notify();
+			t.interrupt();
 		}
-		t.Join();
-		Console.WriteLine("-- main exiting...");
+		t.join();
+		System.out.println("-- main exiting...");
+	}
+}
+
+class InterruptWhileWaitingOnExplicitMonitor {
+	public static void execute() throws InterruptedException {
+		Lock monitor = new ReentrantLock();
+		Condition cv = monitor.newCondition();
+		Thread t = new Thread(() -> {
+			monitor.lock();
+			try {
+				try {
+					cv.await();
+					System.out.println("-- thread was notified!");
+				} catch (InterruptedException ie) {
+					System.out.println("*** thread was interrupted while waiting!");
+				}
+			} finally {
+				monitor.unlock();
+			}
+			System.out.println("-- Thread.interrupted(): " + Thread.interrupted());
+		});
+		t.start();
+		Thread.sleep(100);
+		
+		monitor.lock();
+		try {
+			cv.signal();
+			t.interrupt();
+		} finally {
+			monitor.unlock();
+		}
+		t.join();
+		System.out.println("-- main exiting...");
 	}
 }
 
 public class UseInterrupt {
-	public static void Main() {
-		//UseInterruptToCancel.Execute();
-		InterruptWhileWaitingOnImplicitMonitor.Execute();
+	public static void main(String... args) throws InterruptedException {
+		UseInterruptToCancel.execute();
+		//InterruptWhileWaitingOnImplicitMonitor.execute();
+		//InterruptWhileWaitingOnExplicitMonitor.execute();
 	}
 }
-
-
-
 
