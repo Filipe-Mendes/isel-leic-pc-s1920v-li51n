@@ -99,7 +99,7 @@ public static class ThreadEx {
  monitor.lock();
  try {
    // critical section
- } finaly {
+ } finally {
    lock.unlock();
  }
  ```
