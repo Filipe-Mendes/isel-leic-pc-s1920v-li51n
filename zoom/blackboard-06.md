@@ -11,7 +11,8 @@
 - O Java dispõe de dois métodos para testar o *interrupted state*: `Thread.interrupted` e `Thread.isInterrupted`. O primeiro, um método estático, devolve o *interrupted state* da *thread* corrente e faz *clear* ao *interrupted state*; o segundo, um método de instância, e devolve o *interrupt state* da *thread* *this*, sem alterar o estado do *interrupted state*.
 
 - No .NET não existe este tipo de funcionalidade, mas algo semelhante pode ser implementado com o código que se mostra a seguir:
-````
+
+``` C#
 public static class ThreadEx {
   
   // Returns interrupted state, and leaves it cleared
@@ -93,7 +94,8 @@ public static class ThreadEx {
  - Suportam um número arbitrário de variáveis condição.
  
  - O código dos "procedimentos de entrada" tem que explicitar a aquisição e libertação do *lock* do monitor. Exemplo:
- ```
+ 
+ ``` Java
  monitor.lock();
  try {
    // critical section
