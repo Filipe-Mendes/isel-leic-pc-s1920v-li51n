@@ -94,8 +94,8 @@ class InterruptWhileWaitingOnImplicitMonitor {
 
 public class UseInterrupt {
 	public static void Main() {
-		//UseInterruptToCancel.Execute();
-		InterruptWhileWaitingOnImplicitMonitor.Execute();
+		UseInterruptToCancel.Execute();
+		//InterruptWhileWaitingOnImplicitMonitor.Execute();
 	}
 }
 
