@@ -125,7 +125,7 @@ public class GenericSynchronizerMonitorStyleImplicitMonitor {
 
     // returns true if synchronization state allows an immediate acquire
     private bool CanAcquire(AcquireArgs acquireArgs) {
-        returns true if "syncState" satisfies an immediate acquire according to "acquireArgs";
+        returns true if "synchState" satisfies an immediate acquire according to "acquireArgs";
     }
 
     // executes the processing associated with a successful acquire 
@@ -139,9 +139,11 @@ public class GenericSynchronizerMonitorStyleImplicitMonitor {
         update "syncState" according to "releaseArgs";
     }
 
+	// The acquire operation
     public bool Acquire(AcquireArgs acquireArgs, out AcquireResult result, int timeout = Timeout.Infinite) {
         lock(monitor) {
 			if (CanAcquire(acquireArgs)) {
+				// do an immediate acquire
 				result = AcquireSideEffect(acquireArgs);
 				return true;
 			}
@@ -157,16 +159,19 @@ public class GenericSynchronizerMonitorStyleImplicitMonitor {
                     // if notification was made with Monitor.Pulse, the single notification
 					// may be lost if the blocking of the notified thread was interrupted,
 					// so, if an acquire is possible, we notify another blocked thread, if any.
+					// anyway we propagate the interrupted exception
 					if (CanAcquire(acquireArgs))
 						Monitor.Pulse(monitor);
 					throw;
 				}
 			} while (!CanAcquire(acquireArgs));
+			// now we can complete the acquire after blocking in the monitor
         	result = AcquireSideEffect(acquireArgs);
 			return true;
 		}
     }
 
+	// The release operation
     public void Release(ReleaseArgs releaseArgs) {
 		lock(monitor) {
         	UpdateStateOnRelease(releaseArgs);
@@ -178,21 +183,27 @@ public class GenericSynchronizerMonitorStyleImplicitMonitor {
 #endif
 
 /**
- * Semaphore following the monitor style, using an *implicit .NET monitor*, with
+ * Semaphore following the "monitor style", using an *implicit .NET monitor*, with
  * support for timeout on the acquire operation.
  */
+
 public class SemaphoreMonitorStyleImplicitMonitor {
     // implicit .NET monitor that suports the synchronzation of shared data access
     // and supports also the control synchronization.
     private readonly Object monitor = new Object();
 	
 	// synchronization state
-	private int permits;
+	private int permits;	// the number of permits in the custody semaphore 
+	
+	/**
+	 * Synchronizer specific methods
+	 */
 	
 	// initialize the semaphore
-	public SemaphoreMonitorStyleImplicitMonitor(int initial) {
-		if (initial > 0)
-			permits = initial;
+	public SemaphoreMonitorStyleImplicitMonitor(int initial = 0) {
+		if (initial < 0)
+			throw new ArgumentException("initial");
+		permits = initial;
 	}
 	
 	// if the pending permits e equal or greater to the request,
@@ -205,9 +216,11 @@ public class SemaphoreMonitorStyleImplicitMonitor {
 	// take into account the released permits
 	private void UpdateStateOnRelease(int releases) { permits += releases; }
 	
-	public bool Acquire(int acquires, int timeout) {
+	// acquire "acquires" permits
+	public bool Acquire(int acquires, int timeout = Timeout.Infinite) {
 		lock(monitor) {
 			if (CanAcquire(acquires)) {
+				// there are sufficient permits available, take them
                 AcquireSideEffect(acquires);
 				return true;
 			}
@@ -221,11 +234,13 @@ public class SemaphoreMonitorStyleImplicitMonitor {
 			return true;
 		}
 	}
-
+	
+	// release "releases" permits
 	public void Release(int releases) {
 		lock(monitor) {
 			UpdateStateOnRelease(releases);
-			Monitor.PulseAll(monitor);	/* the release can satisfy multiple acquires */
+			Monitor.PulseAll(monitor);	// a release can satisfy multiple acquires, so notify all
+					 					// blocked threads
 		}
 	}
 }

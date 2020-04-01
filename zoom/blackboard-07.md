@@ -393,7 +393,7 @@ public class GenericSynchronizerMonitorStyleImplicitMonitor {
 
 ```
 
-### Implementação de um Semáforo ao "Estilo Monitor" com Base num Monitor Implícito do :NET
+### Implementação de um Semáforo ao "Estilo Monitor" com Base num Monitor Implícito do .NET
 
 - Este código foi escrito a partir do pseudo-código anterior, começando por concretizar os tipos genéricos:
 	 - `SynchState`, `int`, cujo valor é o número de autorizações sob custódia do semáforo;
@@ -402,12 +402,12 @@ public class GenericSynchronizerMonitorStyleImplicitMonitor {
 	 - `AcquireResult`, `void` dado que o método *acquire* apenas devolve a indicação se a operação foi realizada ou houve desistência por *timeout*;
 	 - `ReleaseArgs`, `int` que especifica o número de autorizações a devolver ao semáforo pela operação *release*.
 
-- Depois, foram concretizados os métodos cujo código depende da semântica do sincronizador, neste caso, do semáforo:
+- A seguir, foram concretizados os métodos cujo código depende da semântica do sincronizador, neste caso, do semáforo:
 	- `CanAcquire` que devolve `true` se o número de autorizações sob custódia do semáforo é suficiente para satisfazer o respectivo *acquire*;
 	- `AcquireSideEffect`que actualiza o estado do semáforo subtraindo o número de autorizações concedidas pela operaçao *acquire* ao número de autorizações sob custódia do semáforo;
 	- `UpdateOnRelease` que soma às autorizações sob custódia do semáforo as autorizações entregues com a operação de *release*.
 
-- Finalmente, na parte do código que não depende da semmantica do sincronizador, por estarmos a utilizar monitores implícitos do .NET, foi necessário ponderar como ia ser feita a notificação das *threads* bloqueadas no monitor para decidir se era, ou não, necessário capturar e processar a *interrupted exception* no método *acquire*:
+- Finalmente, na parte do código que não depende da semmantica do sincronizador, por estarmos a utilizar monitores implícitos do .NET, <ins>foi necessário ponderar como ia ser feita a notificação das *threads* bloqueadas no monitor para decidir se era, ou não, necessário capturar e processar a *interrupted exception* no método *acquire*</ins>:
 	- No caso deste semáforo, a operação *release* pode devolver um número arbitrário de autorizações à custódia do semáforo e podem existir *acquires* bloqueados também por solicitárem um número arbitrario de autorizações;
 	- Dado o ponto anterior só podemos ter a certeza de que são notificadas todas as *threads* que podem ver as suas operações *acquire* satisfeitas, se notificarmos todas as *threads* bloqueadas na variável condição do monitor, usando `Monitor.PulseAll`;
 	- **Quando se usa `Monitor.PulseAll` para notificar as *threads* bloqueadas na variável condição no monitor não se coloca o problema da perda de notificações**, pelo que <ins>não é necessário</ins> capturar e processar a *interrupted exception* no método *acquire*, com o objectivo de regenerar eventuais notificação perdidas devido à interrupção das *threads* bloquadas na variável condição do monitor.
