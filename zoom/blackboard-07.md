@@ -454,7 +454,7 @@ public class SemaphoreMonitorStyleImplicitMonitor {
 		lock(monitor) {
 			if (CanAcquire(acquires)) {
 				// there are sufficient permits available, take them
-                AcquireSideEffect(acquires);
+				AcquireSideEffect(acquires);
 				return true;
 			}
 			TimeoutHolder th = new TimeoutHolder(timeout);
@@ -472,8 +472,7 @@ public class SemaphoreMonitorStyleImplicitMonitor {
 	public void Release(int releases) {
 		lock(monitor) {
 			UpdateStateOnRelease(releases);
-			Monitor.PulseAll(monitor);	// a release can satisfy multiple acquires, so notify all
-					 					// blocked threads
+			Monitor.PulseAll(monitor);	// a release can satisfy multiple acquires, so notify all blocked threads
 		}
 	}
 }
