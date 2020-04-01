@@ -1,5 +1,6 @@
 # Aula 07 - Implementação de Sincronizadores (I)
 
+____
 ## Conceito de Monitor
 
 - O conceito de monitor define um meta-sincronizador adequado à implementação de sincronizadores (ou *schedulers* de "recursos").
@@ -12,7 +13,7 @@
 
 - O monitor garante, que num determinado momento, <ins>quanto muito uma *thread* está *dentro* do monitor<ins>. Quando uma *thread* está dentro do monitor é atrasada a execução de qualquer outra *thread* que invoque um dos seus procedimentos de entrada. 
 
-- Para bloquear as *threads* dentro do monitor *Brinch Hansen* e *Hoare*  propuseram o conceito de variável condição (que, de facto, nem são variáveis nem condições, são antes filas de espera onde são blouqeadas as *threads*). A ideia básica é a seguinte: quando as *threads* não têm condições para realizar a operação *acquire* que pretendem bloqueiam-se nas variáveis condição; quando outras *threads* a executar dentro do monitor alteram o estado partilhado sinalizam as *threads* bloqueadas nas variáveis condição quando isso for adequado.
+- Para bloquear as *threads* dentro do monitor *Brinch Hansen* e *Hoare* propuseram o conceito de variável condição (que, de facto, nem são variáveis nem condições, são antes filas de espera onde são blouqeadas as *threads*). A ideia básica é a seguinte: quando as *threads* não têm condições para realizar a operação *acquire* que pretendem bloqueiam-se nas variáveis condição; quando outras *threads* a executar dentro do monitor alteram o estado partilhado sinalizam as *threads* bloqueadas nas variáveis condição quando isso for adequado.
 
 ### Semântica de Sinalização de *Brinch Hansen* e *Hoare*
 
@@ -44,14 +45,40 @@
  
  - Suportam apenas uma variável condição anónima.
  
- - O código dos *procedimentos de entrada* (secções críticas) é definido dentro de métodos ou blocos marcados com `synchronized`. A funcionalidade das variáveis condição está acessivel usando os seguintes métodos da classe `java.lang.Object`: `Object.wait`, `Object.notify` e `Object.notifyAll`.
+ - O código dos *procedimentos de entrada* (secções críticas) é definido dentro de métodos ou blocos marcados com `synchronized`. A funcionalidade das variáveis condição está acessivel usando os seguintes métodos da classe `java.lang.Object`: `Object.wait`, `Object.notify` e `Object.notifyAll` (broadcast).
  
- - Quando a notificação de uma *thread* bloqueada ocorrer em simultâneo com a interrupção dessa *thread* é reportada sempre a notificação e só depois, eventualmente, é reportada a interrupção.
+ - Quando a notificação de uma *thread* bloqueada ocorrer em simultâneo com a interrupção dessa *thread* é reportada sempre a notificação e só depois será reportada a interrupção.
 
 #### Implementação do *Single Resource* com base num  monitor implícito do *Java* 
 
 ```Java
 public class SingleResource {
+	private final Object monitor; // the monitor
+	private boolean busy;         // the synchronization state
+	
+	public SingleResource(boolean busy) {
+		monitor = new Object();
+		this.busy = busy;
+	}
+	
+	public SingleResource() { this(false); }
+  
+	// acquire resource
+	public void acquire() throws InterruptedException {
+		synchronized(monitor) {	// this block is a critical section executed inside the monitor
+			while (busy)
+				monitor.wait();	// block current thread on monitor's condition variable
+			busy = true;
+		}
+	}
+  
+	// release the previously acquire resource
+	public void release() {
+		synchronized(monitor) {	// this block is a critical section executed inside the monitor
+			busy = false;
+			monitor.notify();	// notify one thread blocked in the monitor by acquire
+		}
+	}
 }
 ```
 
@@ -63,29 +90,64 @@ public class SingleResource {
  
  - O código dos "procedimentos de entrada" tem que explicitar a aquisição e libertação do *lock* do monitor. Exemplo:
  
- ``` Java
- monitor.lock();
- try {
-   // critical section
- } finally {
-   lock.unlock();
- }
- ```
+ 
+ ```Java
+monitor.lock();
+try {
+	 // critical section
+} finally {
+	lock.unlock();
+}
+```
 
 - As variáveis condição são acedidas através dos métodos definidos na interface `java.util.concurrent.locks.Condition`, nomeadamente: `Condition.await`, `Condition.awaitNanos`, `Condition.signal` e `Condition.signalAll`.
  
  - Quando a notificação de uma *thread* bloqueada ocorrer em simultâneo com a interrupção dessa *thread* é reportada sempre a notificação e só depois, eventualmente, é reportada a interrupção. 
-
- - São associados de forma *lazy* aos objectos, quando se invoca a respectiva funcionalidade.
  
- - O código dos "procedimentos de entrada" (secções críticas) é definido dentro de métodos ou blocos marcados com `synchronized`. A funcionalidade das variáveis condição está acessivel usando os seguintes métodos da classe `java.lang.Object`: `Object.wait`, `Object.notify` e `Object.notifyAll`.
- 
- - Quando a notificação de uma *thread* bloqueada ocorrer em simultâneo com a interrupção dessa *thread* é reportada sempre a notificação e só depois, eventualmente, a interrupção.
-
 #### Implementação do *Single Resource* com base num  monitor explícito do *Java*
 
 ```Java
+
+import java.util.concurrent.locks.*;
+
 public class SingleResourceEx {
+	private final Lock monitor;       // the lock
+	private final Condition nonBusy;  // the condition variable
+	private boolean busy;             // the synchronization state
+	
+	public SingleResourceEx(boolean busy) {
+		monitor = new ReentrantLock();		// create the monitor
+		nonBusy = monitor.newCondition();	// get a condition variable of the monitor
+		this.busy = busy;
+	}
+	
+	public SingleResourceEx() { this(false); }
+  
+	// acquire resource
+	public void acquire() throws InterruptedException {
+    	monitor.lock();		// enter the monitor, that is, acquire the monitor's lock
+   		try { 	// this block is the critical section executed inside the monitor
+			while(busy)
+				nonBusy.await();	// block current thread on the onBusy conditon variable,
+					 				// obviously leaving the monitor
+			busy = true;	// acquire the resource
+		} finally {
+			monitor.unlock();	// release the lock, that is, leave the monitor
+		}
+	}
+  
+	// release the previously acquire resource 
+	public void release() {
+		monitor.lock();
+		try {
+			busy = false;		// mark resource as free
+			nonBusy.signal();	// notify one thread blocked on onBusy condition variable; if there
+								// is at least one thread blocked, it will reenter the monitor and
+								// try to acquire the resource
+		} finally {
+			monitor.unlock();
+		}
+	}
 }
 ```
 
@@ -102,7 +164,61 @@ public class SingleResourceEx {
 #### Implementação do *Single Resource* com base num  monitor implícito do .NET
 
 ```C#
-public class SingleResource{
+using System.Threading;
+
+public class SingleResource {
+	private readonly object monitor;	// the monitor with the associated condition variable
+	private bool busy;					// the synchronization state
+  
+	public SingleResource(bool busy = false) {
+		monitor = new object();
+		this.busy = busy;
+	}
+	
+	/**
+	 * Synchronizer specific methods - following the generic synchronizar code pattern
+	 */
+	 
+	 private bool CanAcquire() { return !busy; }
+  
+	 private void AcquireSideEffect() { busy = true; }
+  
+  	private void UpdateOnRelease() { busy = false; }
+  
+	// acquire the resource
+	public void Acquire() {
+		lock(monitor) {	// this block is the critical section executed "inside" the monitor
+			try {	// since we are notifying with Monitor.Pulse we must catch the interrupted exception
+					// in order to regenerate eventual losed notification due to thread interruption
+				while (!CanAquire())
+					Monitor.Wait(monitor);	// block the current thread on the monitor's condition variable
+			} catch (ThreadInterruptedException) {
+				// as is possible that the current thread was notified (and interrupted), if
+				// the resource is busy, we must regenerate the notification, that is, notify 
+				// another blocked thread if there is one
+				if (!busy)
+					Monitor.Pulse(monitor);
+				
+				throw;    // rethrow ThreadInterruptedException
+			}
+			// the resource if free, mark it as busy
+			AcquireSideEffect();
+		}
+	}
+  
+	// release the previously acquired resource
+	public void release() {
+		lock(monitor) {
+			updateStateOnRelease();		// mark the resource as free
+			Monitor.Pulse(monitor);         // notify one of the threads block on the monitor's condition variable.
+											// Opps! This notification an be losed due to an simultaneous INTERRUPT.
+											// This issue is taken into account in the acquire() método.
+			/**
+			 * if you are a brute force enthusiast, you can work around this problem
+			 * by never using Monitor.Pulse and always notifying with Monitor.PulseAll.
+			 */
+		 }
+  	}
 }
 ```
 
@@ -112,5 +228,302 @@ public class SingleResource{
  
  - Será discutida a implementação deste tipo de monitor quando for discutida a <ins>notificação específica de *threads*</ins> especialmente relevante na impletação de sincronizadores ao "estilo kernel".
  
+____
+
+## *Timeouts* em Sincronizadores Implementados com Base em Monitor
+
+- Na implementação de sincronizadores com base em monitor, o suporte para *timeout* nas operações *acquire* tem que ter em consideração que as *threads* podem bloquear-se várias vezes nas variáveis condição antes de poderem realizar a operação *acquire*.
+
+- Ainda que estejam disponíveis *overloads* dos métodos *wait/await* nas variáveis condição que permitam especificar um limite para o tempo de bloqueio (*timeout*), não se pode passar simplesmente a estes métodos o valor do *timeout* especificado pelo chamador da operação *acquire*.
+
+- Se, por exemplo, for especificado um timeout de 10 segundos numa chamada à operação *acquire*, este deve ser o valor especificado na primeira chamada ao método *wait*. Contudo, se a *thread* for notificada após 6 segundos e o estado de sincronização não permitir realizar a operação *acquire*, a *thread* tem que voltar a bloquear-se.
+
+- No segundo e posterior chamadas ao método *wait*, não se devem passar o *timeout* dos 10 segundos, mas o valor remanescente, que, no nosso exemplo, são 4 segundos.
+
+- Para simplificar o suporte de *timeouts* na implementação de sincronizadores com base em monitor, estão disponíveis o tipo TimeoutHolder para *Java* e .NET, nos ficheiros, `src/utils/TimeoutHolder.java` e `src/utils/TimeoutHolder.java`, cujo código se apresenta a seguir.
+
+- Os monitores explícitos do *Java* têm um *overload* do método *wait*, `awaitNanos` que recebe como argumento o valor do *timeout* em nanosegundos e devolve o número de nanosegundos que faltavam para expirar o *timeout* ou um valor menor ou igual a `0L` se o *timeout* tiver expirado. Quando se usa este tipo de monitor deve usar-se esta funcionalidade.
+
+
+#### Implementação do tipo `TimeoutHolder` em *Java*
+
+```Java
+import java.util.concurrent.TimeUnit;
+
+public class TimeoutHolder {
+	private final long deadline;		// timeout deadline: non-zero if timed
+	
+	public TimeoutHolder(long millis) {
+		deadline = millis > 0L ? System.currentTimeMillis() + millis: 0L;
+	}
+	
+	public TimeoutHolder(long time, TimeUnit unit) {
+		deadline = time > 0L ? System.currentTimeMillis() + unit.toMillis(time) : 0L;
+	}
+	
+	// returns true if a timeout was defined
+	public boolean isTimed() { return deadline != 0L; }
+	
+	// returns the remaining timeout
+	public long value() {
+		if (deadline == 0L)
+			return Long.MAX_VALUE;
+		long remainder = deadline - System.currentTimeMillis();
+		return remainder > 0L ? remainder : 0L;
+	}	
+}
+```
+
+#### Implementação do tipo `TimeoutHolder` em .NET
+
+```C#
+public struct TimeoutHolder {
+	private refTime;			// the timeout is referred to this timestamp
+	private int timeout;		// the remainig timeout
+	
+	public TimeoutHolder(int timeout) {
+		this.timeout = timeout;
+		// if the timeout is zero (immediate) ou Infinite, we do not need a time reference
+		this.refTime = (timeout != 0 && timeout != Timeout.Infinite) ? Environment.TickCount : 0;
+	}
+	
+	// returns the remaining timeout
+	public int Value {
+		get {
+			if (timeout != 0 && timeout != Timeout.Infinite) {
+				// take the current timestamp, and subract elapsed time if any
+				int now = Environment.TickCount;
+				if (now != refTime) {
+					int elapsed = now - refTime;
+					refTime = now;
+					timeout elapsed < timeout ? timeout - elapsed: 0;
+				}
+			}
+			return timeout;
+		}
+	}
+}
+```
+
+____
+### Pseudo Código do Sincronizador Genérico ao "Estilo Monitor" em .NET usando Monitor Implícito
+
+```C#
+
+public class GenericSynchronizerMonitorStyleImplicitMonitor {
+    // implicit .NET monitor that suports the synchronzation of shared data access
+    // and supports also the control synchronization.
+    private readonly object monitor = new Object();
+    
+	// synchronization state
+	private SynchState synchState;
+
+    // initialize the synchronizer
+	public GenericSynchronizerMonitorStyleImplicitMonitor(InitializeArgs initialArgs) {
+        initialize "synchState" according to information specified by "initialArgs";
+    }
+
+    // returns true if synchronization state allows an immediate acquire
+    private bool CanAcquire(AcquireArgs acquireArgs) {
+        returns true if "synchState" satisfies an immediate acquire according to "acquireArgs";
+    }
+
+    // executes the processing associated with a successful acquire 
+    private AcquireResult AcquireSideEffect(AcquireArgs acquireArgs) {
+        update "synchState" according to "acquireArgs" after a successful acquire;
+        returns "the-proper-acquire-result";
+    }
+
+    // update synchronization state due to a release operation
+    private void UpdateStateOnRelease(ReleaseArgs releaseArgs) {
+        update "syncState" according to "releaseArgs";
+    }
+
+	// The acquire operation
+    public bool Acquire(AcquireArgs acquireArgs, out AcquireResult result, int timeout = Timeout.Infinite) {
+        lock(monitor) {
+			if (CanAcquire(acquireArgs)) {
+				// do an immediate acquire
+				result = AcquireSideEffect(acquireArgs);
+				return true;
+			}
+			TimeoutHolder th = new TimeoutHolder(timeout);
+			do {
+				if ((timeout = th.Value) == 0) {
+					result = default(AcquireResult);
+					return false;
+				}
+				try {
+                    Monitor.Wait(monitor, timeout);
+				} catch (ThreadInterruptedException) {
+                    // if notification was made with Monitor.Pulse, the single notification
+					// may be lost if the blocking of the notified thread was interrupted,
+					// so, if an acquire is possible, we notify another blocked thread, if any.
+					// anyway we propagate the interrupted exception
+					if (CanAcquire(acquireArgs))
+						Monitor.Pulse(monitor);
+					throw;
+				}
+			} while (!CanAcquire(acquireArgs));
+			// now we can complete the acquire after blocking in the monitor
+        	result = AcquireSideEffect(acquireArgs);
+			return true;
+		}
+    }
+
+	// The release operation
+    public void Release(ReleaseArgs releaseArgs) {
+		lock(monitor) {
+        	UpdateStateOnRelease(releaseArgs);
+			Monitor.PulseAll(monitor);	/* or Monitor.Pulse if only one thread can have success in its acquire */
+		}
+    }
+}
+
+```
+
+
+
+```C#
+public class GenricSynchronizerMonitorStyleImplicitMonitor {
+
+  private readonly object monitor = new object();   // the monitor
+  
+  private SynchState synchState;    // the synchronization state
+  
+  /**
+   * Synchronizer specific methods
+   */
+   
+  public GenricSynchronizerMonitorStyleImplicitMonitor(InitializeArgs initialArgs) {
+    initialize "synchState" according to information specified "initialArgs";
+  }
+  
+  private bool CanAcquire(AcquireArgs acquireArgs) {
+    returns "true if "synchState" statifiies an emmediate acquire according to "acquireArgs";
+  }
+  
+  private AcquireResult AcquireSideEffect(AcquireArgs acquireArgs) {
+    update "synchState" according to "acquireArgs" after a successful acquire;
+    retuns "the-proper-cquire-result";
+  }
+  
+  private void updateStateOnRelease(ReleaseArgs releaseArg) {
+    update "synchState" according to "releaseArgs";
+  }
+  
+  /**
+   * Generic code: independent of the synchronizer's semantins
+   */
+   
+   // The Acquire method
+   public bool Acquire(AcquireArgs acquireArgs, out AcquireResult result,
+                       int timeout = Timeout.Infiniter) {
+     lock(monitor) {
+       if (CanAcquire(acquireArgs)) {
+           result = AcquireSideEffect(acquireArgs);
+           return true;   // success!
+       }
+       TimeoutHolder th = new TimeoutHolder(timeout);
+       do {
+         if ((timeout = th.Value) == 0) {
+           result = default(AcquireResult);
+           return false;  // timeout!
+         }
+         try {
+           Monitor.Wait(timeout);
+         } catch (ThreadInterruptedException) {
+           // if notification was done with Monitor.Pulse...
+           
+           // Regenrate an enventual losed notification
+           if (CanAcquire(acquireArgs))
+               Monitor.Pulse(monitor);
+          throw;
+         }
+       } while (!CanAcquire(acquireArgs))
+       result = AcquireSideEffect(acquireArgs);
+       return true;   // success!
+     }
+  }
+  
+  // The Release method
+  public void Release(ReleaseArgs releaseArgs) {
+    lock(monitor) {
+      updateStateOnRelease(releaseArgs);
+      Monitor.PulseAll(monitor); /* or Monitor.Pulse if only one thread can have success
+                                    in its acquire */
+    }
+  }
+}
+```
+
+``` C#
+public class SemaphoreMonitorStyleImplicitMonitor {
+
+  private readonly object monitor = new object();   // the monitor
+  
+  private int permits;    // available permits
+  
+  /**
+   * Synchronizer specific methods
+   */
+   
+  public SemaphoreMonitorStyleImplicitMonitor(int initial) {
+    if (initial > 0)
+      permits = initial;
+  }
+  
+  private bool CanAcquire(int acquires) {
+    return permits >= acquires;
+  }
+  
+  private void AcquireSideEffect(int acquires) {
+    permits -= acquire;
+  }
+  
+  private void updateStateOnRelease(int releases) {
+    permits += releases;
+  }
+  
+  /**
+   * Generic code: independent of the synchronizer's semantins
+   */
+   
+   // The Acquire method
+   public bool Acquire(int acquires, int timeout = Timeout.Infiniter) {
+     lock(monitor) {
+       if (CanAcquire(acquireArgs)) {
+           AcquireSideEffect(acquires);
+           return true;   // success!
+       }
+       TimeoutHolder th = new TimeoutHolder(timeout);
+       do {
+         if ((timeout = th.Value) == 0) {
+           return false;  // timeout!
+         }
+         Monitor.Wait(timeout);
+       } while (!CanAcquire(acquireArgs))
+       AcquireSideEffect(acquireArgs);
+       return true;   // success!
+     }
+  }
+  
+  // The Release method
+  public void Release(int releases) {
+    lock(monitor) {
+      updateStateOnRelease(releases);
+      Monitor.PulseAll(monitor);
+    }
+  }
+}
+```
+
+
+
+
+
+
+
+
 
  
