@@ -308,42 +308,52 @@ public struct TimeoutHolder {
 ____
 ### Pseudo Código do Sincronizador Genérico ao "Estilo Monitor" em .NET usando Monitor Implícito
 
+- Xxx
+
 ```C#
 
 public class GenericSynchronizerMonitorStyleImplicitMonitor {
-    // implicit .NET monitor that suports the synchronzation of shared data access
-    // and supports also the control synchronization.
-    private readonly object monitor = new Object();
-    
+	// implicit .NET monitor that suports the synchronzation of shared data access
+	// and supports also the control synchronization.
+	private readonly object monitor = new Object();
+	
 	// synchronization state
 	private SynchState synchState;
-
-    // initialize the synchronizer
+	
+	// initialize the synchronizer
 	public GenericSynchronizerMonitorStyleImplicitMonitor(InitializeArgs initialArgs) {
-        initialize "synchState" according to information specified by "initialArgs";
-    }
-
-    // returns true if synchronization state allows an immediate acquire
-    private bool CanAcquire(AcquireArgs acquireArgs) {
-        returns true if "synchState" satisfies an immediate acquire according to "acquireArgs";
-    }
-
-    // executes the processing associated with a successful acquire 
-    private AcquireResult AcquireSideEffect(AcquireArgs acquireArgs) {
-        update "synchState" according to "acquireArgs" after a successful acquire;
-        returns "the-proper-acquire-result";
+		initialize "synchState" according to information specified by "initialArgs";
+	}
+	
+	/**
+	 * Synchronizer specific methods
+	 */
+	
+	// returns true if synchronization state allows an immediate acquire
+	private bool CanAcquire(AcquireArgs acquireArgs) {
+		returns true if "synchState" satisfies an immediate acquire according to "acquireArgs";
+	}
+		
+	// executes the processing associated with a successful acquire
+	private AcquireResult AcquireSideEffect(AcquireArgs acquireArgs) {
+		update "synchState" according to "acquireArgs" after a successful acquire;
+		returns "the-proper-acquire-result";
     }
 
     // update synchronization state due to a release operation
-    private void UpdateStateOnRelease(ReleaseArgs releaseArgs) {
-        update "syncState" according to "releaseArgs";
-    }
+	private void UpdateStateOnRelease(ReleaseArgs releaseArgs) {
+		update "syncState" according to "releaseArgs";
+	}
+	
+	/**
+	 * Synchronizer independent methods
+	 */
 
 	// The acquire operation
-    public bool Acquire(AcquireArgs acquireArgs, out AcquireResult result, int timeout = Timeout.Infinite) {
-        lock(monitor) {
+	public bool Acquire(AcquireArgs acquireArgs, out AcquireResult result, int timeout = Timeout.Infinite) {
+		lock(monitor) {
 			if (CanAcquire(acquireArgs)) {
-				// do an immediate acquire
+				// do the acquire immediately
 				result = AcquireSideEffect(acquireArgs);
 				return true;
 			}
@@ -354,27 +364,28 @@ public class GenericSynchronizerMonitorStyleImplicitMonitor {
 					return false;
 				}
 				try {
-                    Monitor.Wait(monitor, timeout);
+					Monitor.Wait(monitor, timeout);
 				} catch (ThreadInterruptedException) {
-                    // if notification was made with Monitor.Pulse, the single notification
-					// may be lost if the blocking of the notified thread was interrupted,
+					// if a notification was made with Monitor.Pulse, this single notification
+					// may be lost if the blocking of the notified thread was interrupted.
 					// so, if an acquire is possible, we notify another blocked thread, if any.
 					// anyway we propagate the interrupted exception
+					
 					if (CanAcquire(acquireArgs))
 						Monitor.Pulse(monitor);
 					throw;
 				}
 			} while (!CanAcquire(acquireArgs));
 			// now we can complete the acquire after blocking in the monitor
-        	result = AcquireSideEffect(acquireArgs);
+			result = AcquireSideEffect(acquireArgs);
 			return true;
 		}
-    }
+	}
 
 	// The release operation
-    public void Release(ReleaseArgs releaseArgs) {
+	public void Release(ReleaseArgs releaseArgs) {
 		lock(monitor) {
-        	UpdateStateOnRelease(releaseArgs);
+			UpdateStateOnRelease(releaseArgs);
 			Monitor.PulseAll(monitor);	/* or Monitor.Pulse if only one thread can have success in its acquire */
 		}
     }
@@ -382,148 +393,89 @@ public class GenericSynchronizerMonitorStyleImplicitMonitor {
 
 ```
 
+### Implementação de um Semáforo ao "Estilo Monitor" com Base num Monitor Implícito do :NET
 
+- Este código foi escrito a partir do pseudo-código anterior, começando por concretizar os tipos genéricos:
+	 - `SynchState`, `int`, cujo valor é o número de autorizações sob custódia do semáforo;
+	 - `InitializeArgs`, `int` com o número de autorizações sob custódia do semáforo após inicialização;
+	 - `AcquireArgs`, `int` com o número de autorizações solicitadas ao semáforo pela operação *acquire*
+	 - `AcquireResult`, `void` dado que o método *acquire* apenas devolve a indicação se a operação foi realizada ou houve desistência por *timeout*;
+	 - `ReleaseArgs`, `int` que especifica o número de autorizações a devolver ao semáforo pela operação *release*.
 
+- Depois, foram concretizados os métodos cujo código depende da semântica do sincronizador, neste caso, do semáforo:
+	- `CanAcquire` que devolve `true` se o número de autorizações sob custódia do semáforo é suficiente para satisfazer o respectivo *acquire*;
+	- `AcquireSideEffect`que actualiza o estado do semáforo subtraindo o número de autorizações concedidas pela operaçao *acquire* ao número de autorizações sob custódia do semáforo;
+	- `UpdateOnRelease` que soma às autorizações sob custódia do semáforo as autorizações entregues com a operação de *release*.
+
+- Finalmente, na parte do código que não depende da semmantica do sincronizador, por estarmos a utilizar monitores implícitos do .NET, foi necessário ponderar como ia ser feita a notificação das *threads* bloqueadas no monitor para decidir se era, ou não, necessário capturar e processar a *interrupted exception* no método *acquire*:
+	- No caso deste semáforo, a operação *release* pode devolver um número arbitrário de autorizações à custódia do semáforo e podem existir *acquires* bloqueados também por solicitárem um número arbitrario de autorizações;
+	- Dado o ponto anterior só podemos ter a certeza de que são notificadas todas as *threads* que podem ver as suas operações *acquire* satisfeitas, se notificarmos todas as *threads* bloqueadas na variável condição do monitor, usando `Monitor.PulseAll`;
+	- **Quando se usa `Monitor.PulseAll` para notificar as *threads* bloqueadas na variável condição no monitor não se coloca o problema da perda de notificações**, pelo que <ins>não é necessário</ins> capturar e processar a *interrupted exception* no método *acquire*, com o objectivo de regenerar eventuais notificação perdidas devido à interrupção das *threads* bloquadas na variável condição do monitor.
+
+- Tendo em consideração tudo o que foi dito anteriormente, a implenentação do semáforo usando o "estilo monitor" com suporte para *timeout* na operação *acquire* e processando correctamente a interrupção das *threads* boqueadas no monitor é o que se apresenta a seguir. 
+	
 ```C#
-public class GenricSynchronizerMonitorStyleImplicitMonitor {
+/**
+ * Semaphore following the "monitor style", using an *implicit .NET monitor*, with
+ * support for timeout on the acquire operation.
+ */
 
-  private readonly object monitor = new object();   // the monitor
-  
-  private SynchState synchState;    // the synchronization state
-  
-  /**
-   * Synchronizer specific methods
-   */
-   
-  public GenricSynchronizerMonitorStyleImplicitMonitor(InitializeArgs initialArgs) {
-    initialize "synchState" according to information specified "initialArgs";
-  }
-  
-  private bool CanAcquire(AcquireArgs acquireArgs) {
-    returns "true if "synchState" statifiies an emmediate acquire according to "acquireArgs";
-  }
-  
-  private AcquireResult AcquireSideEffect(AcquireArgs acquireArgs) {
-    update "synchState" according to "acquireArgs" after a successful acquire;
-    retuns "the-proper-cquire-result";
-  }
-  
-  private void updateStateOnRelease(ReleaseArgs releaseArg) {
-    update "synchState" according to "releaseArgs";
-  }
-  
-  /**
-   * Generic code: independent of the synchronizer's semantins
-   */
-   
-   // The Acquire method
-   public bool Acquire(AcquireArgs acquireArgs, out AcquireResult result,
-                       int timeout = Timeout.Infiniter) {
-     lock(monitor) {
-       if (CanAcquire(acquireArgs)) {
-           result = AcquireSideEffect(acquireArgs);
-           return true;   // success!
-       }
-       TimeoutHolder th = new TimeoutHolder(timeout);
-       do {
-         if ((timeout = th.Value) == 0) {
-           result = default(AcquireResult);
-           return false;  // timeout!
-         }
-         try {
-           Monitor.Wait(timeout);
-         } catch (ThreadInterruptedException) {
-           // if notification was done with Monitor.Pulse...
-           
-           // Regenrate an enventual losed notification
-           if (CanAcquire(acquireArgs))
-               Monitor.Pulse(monitor);
-          throw;
-         }
-       } while (!CanAcquire(acquireArgs))
-       result = AcquireSideEffect(acquireArgs);
-       return true;   // success!
-     }
-  }
-  
-  // The Release method
-  public void Release(ReleaseArgs releaseArgs) {
-    lock(monitor) {
-      updateStateOnRelease(releaseArgs);
-      Monitor.PulseAll(monitor); /* or Monitor.Pulse if only one thread can have success
-                                    in its acquire */
-    }
-  }
-}
-```
-
-``` C#
 public class SemaphoreMonitorStyleImplicitMonitor {
-
-  private readonly object monitor = new object();   // the monitor
-  
-  private int permits;    // available permits
-  
-  /**
-   * Synchronizer specific methods
-   */
-   
-  public SemaphoreMonitorStyleImplicitMonitor(int initial) {
-    if (initial > 0)
-      permits = initial;
-  }
-  
-  private bool CanAcquire(int acquires) {
-    return permits >= acquires;
-  }
-  
-  private void AcquireSideEffect(int acquires) {
-    permits -= acquire;
-  }
-  
-  private void updateStateOnRelease(int releases) {
-    permits += releases;
-  }
-  
-  /**
-   * Generic code: independent of the synchronizer's semantins
-   */
-   
-   // The Acquire method
-   public bool Acquire(int acquires, int timeout = Timeout.Infiniter) {
-     lock(monitor) {
-       if (CanAcquire(acquireArgs)) {
-           AcquireSideEffect(acquires);
-           return true;   // success!
-       }
-       TimeoutHolder th = new TimeoutHolder(timeout);
-       do {
-         if ((timeout = th.Value) == 0) {
-           return false;  // timeout!
-         }
-         Monitor.Wait(timeout);
-       } while (!CanAcquire(acquireArgs))
-       AcquireSideEffect(acquireArgs);
-       return true;   // success!
-     }
-  }
-  
-  // The Release method
-  public void Release(int releases) {
-    lock(monitor) {
-      updateStateOnRelease(releases);
-      Monitor.PulseAll(monitor);
-    }
-  }
+    // implicit .NET monitor that suports the synchronzation of shared data access
+    // and supports also the control synchronization.
+    private readonly Object monitor = new Object();
+	
+	// synchronization state
+	private int permits;	// the number of permits in the custody semaphore 
+	
+	/**
+	 * Synchronizer specific methods
+	 */
+	
+	// initialize the semaphore
+	public SemaphoreMonitorStyleImplicitMonitor(int initial = 0) {
+		if (initial < 0)
+			throw new ArgumentException("initial");
+		permits = initial;
+	}
+	
+	// if the pending permits e equal or greater to the request,
+	// we can acquire immediately
+	private bool CanAcquire(int acquires) { return permits >= acquires; }
+	
+	// deduce the acquired permits
+	private void AcquireSideEffect(int acquires) { permits -= acquires; }
+	
+	// take into account the released permits
+	private void UpdateStateOnRelease(int releases) { permits += releases; }
+	
+	// acquire "acquires" permits
+	public bool Acquire(int acquires, int timeout = Timeout.Infinite) {
+		lock(monitor) {
+			if (CanAcquire(acquires)) {
+				// there are sufficient permits available, take them
+                AcquireSideEffect(acquires);
+				return true;
+			}
+			TimeoutHolder th = new TimeoutHolder(timeout);
+			do {
+				if ((timeout = th.Value) == 0)
+					return false;
+				Monitor.Wait(monitor, timeout);
+			} while (!CanAcquire(acquires));
+			AcquireSideEffect(acquires);
+			return true;
+		}
+	}
+	
+	// release "releases" permits
+	public void Release(int releases) {
+		lock(monitor) {
+			UpdateStateOnRelease(releases);
+			Monitor.PulseAll(monitor);	// a release can satisfy multiple acquires, so notify all
+					 					// blocked threads
+		}
+	}
 }
 ```
-
-
-
-
-
-
-
-
-
  
