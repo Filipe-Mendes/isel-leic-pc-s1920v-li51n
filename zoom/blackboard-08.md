@@ -1,7 +1,7 @@
 # Aula 08 - Implementação de Sincronizadores (II)
 
 ____
-### Pseudo-code para o Sincronizador Genérico com Base no Monitor Explícito do *Java*
+### Pseudo-código para o Sincronizador Genérico com Base num Monitor Explícito do *Java*
 
 ```Java
 class GenericSynchronizerMonitorStyleExplicitMonitor {
@@ -80,7 +80,7 @@ class GenericSynchronizerMonitorStyleExplicitMonitor {
 }
 ```
 
-### Message Queue ao Estilo Monitro com Base num Monitor Explícito do *Java*
+### *Message Queue* ao Estilo Monitor com Base num Monitor Explícito do *Java*
 
 - Neste sincronizador faz sentido alterar os nomes dos métodos, isto é, em vez de designar os métodos por *acquire* e *release* faz mais sentido desingar os métodos por *receive* e *send*, respectivamente.
 
@@ -88,19 +88,19 @@ class GenericSynchronizerMonitorStyleExplicitMonitor {
 	 - `SynchState`, `LinkedList<T>` que armazena as mensagens enviadas pendentes de recepção;
 	 - `InitializeArgs`, `void`;
 	 - `AcquireArgs`, `void`;
-	 - `AcquireResult`, `T`, que referencia a mensagem receibida ou `null`se houver desistência por *timeout*;
+	 - `AcquireResult`, `T`, que referencia a mensagem recebida ou `null`se houver desistência por *timeout*;
 	 - `ReleaseArgs`, `T` que especifica a mensagem enviada para a fila.
 	 
-- A seguir, foram concretizados os métodos cujo código depende da semântica do sincronizador, neste caso, do semáforo:
+- A seguir, foram concretizados os métodos cujo código depende da semântica do sincronizador:
 	- `CanAcquire` que devolve `true` se a lista das mensagens pendentes de recepção não estiver vazia;
-	- `AcquireSideEffect`remove a próxima mensagem da lista e devolve essa mensagem (que será o `AcquireResult`do método *receive*:
+	- `AcquireSideEffect`remove a próxima mensagem da lista e devolve essa mensagem (que será o `AcquireResult`do método *receive*):
 	- `UpdateOnRelease` acrescenta a mensagem enviada com o método *send* à lista das mensagens pendentes.
 
 - Finalmente, na parte do código que não depende da semântica do sincronizador:
-	- Como cada chamada a *send* apenas viabiliza o sucesso de uma chamada a *receive* a notificação deve ser feita com Condition.signal;
+	- Como cada chamada a *send* apenas viabiliza o sucesso de uma chamada a *receive* a notificação deve ser feita com `Condition.signal;
 	- Nos monitores *Java* não se coloca o problema das perda de notificação quando existe simultaneadade entre notificação e interrupção.
 
-- Tendo em consideração o que foi dito anteriormente, a implementação da *message queue* usando o "estilo monitor" e monitor explícito do *Java* com suporte para *timeout* na operação *acquire* e processando correctamente a interrupção das *threads* boqueadas no monitor é o que se apresenta a seguir. 
+- Tendo em consideração o que foi dito anteriormente, a implementação da *message queue* é aquela que apresentamos a seguir.
 
 ```Java
 class MessageQueueMonitorStyleExplicitMonitor<T> {
@@ -173,12 +173,12 @@ class MessageQueueMonitorStyleExplicitMonitor<T> {
 }
 ```
 
-### Exercícios da SE1
+## Série de Exercícios 1
 
-- Os sincronizadores `BoundedLazy<T>`e `TransferQueue<T>` podem ser implementados usando o "estilo monitor". Os restantes é recomendada a utilização do "estilo Kernel"
+- Os sincronizadores `BoundedLazy<T>`e `TransferQueue<T>` podem ser implementados usando o "estilo monitor". Nos restantes é recomendada a utilização do "estilo Kernel" que será abordado a seguir.
 
 
-#### Exercício 1
+### Exercício 1
 
 - Implemente o sincronizador ​*bounded ​lazy*​, para suportar a computação de valores apenas quando são necessários. A interface pública deste sincronizador, em ​*Java*​, é a seguinte:
 
@@ -238,6 +238,7 @@ Optional<T> get(long timeout) throws InterruptedException {
 		}
 	}
 }
+```
 
 ### Acquisição dos Locks do Monitor Implícito .NET e Reentrada no Monitor
 
@@ -276,7 +277,7 @@ class MonitorEx {
 	}
 ```
 
-### Limitações na implementação de Sincronizadores ao "Estilo Monitor"
+## Limitações na implementação de Sincronizadores ao "Estilo Monitor"
 
 - Os monitores com a semântica de notificação de *Lampson* e *Redell* não garantem atomicidade entre o código que é executado dentro do monitor por uma *releaser thread* antes da notificação de uma *threads* bloqueadas e o código executado pela *acquirer thread* após retorno da operação de *wait* sobre uma variável condição. (Recorda-se que esta atomicidade era garantida pela semântica de sinalização proposta por *Brich Hansen* e *Hoare*).
 
@@ -294,7 +295,7 @@ class MonitorEx {
 	
 	- Quando existe a necessidade de implementar disciplinas de fila de espera especícifas, é sempre necessário implementar explicitamente as filas de espera.
 	
-### Soluções
+## Soluções
 
 - Alguns dos problemas enunciados anteriormente podem ser resolvidos implementando as operações *acquire* com base em máquinas de estados de modo a impedir que uma terceira *thread* acedam ao estado de sincronização antes da conclusão das operações *acquire* viabilizadas por uma operação *release*. Exemplos:
 
@@ -302,12 +303,12 @@ class MonitorEx {
 
 - As solução em que as operações *acquire* são baseadas em máquinas de estados não permitem resolver as situações em que a semântica de sincronização é definida em função de transições de estado como acontece no caso do *read/write lock*.
 
-### Implementação de Sincronizadores ao Estilo *Kernel*
+### Implementação de Sincronizadores ao "Estilo *Kernel*"
 
 - A solução que permite implementar toda e qualquer semântica de sincronização segue um padrão que vamos designar por **estilo kernel** (nas folhas da disciplina, este estilo foi designado **delegação de execução**).
 
 - A ideia que está por detrás do "estilo *kernel*" é simples: <ins>realizar atomicamente o processamento da operação *release* e a conclusão do processamento de todas as operações *acquire* pendentes que são viabilizadas pela operação *release*</ins>.
 
-- A título de curiosidade, o 2estilo *kernel*2 resgata a atomicidade proposta por *Brinch Hansen* e *Hoare* para a sinalização das *threads* bloqueadas no monitor. Esta semântica, garantia atomicidade do código realizado pela operação *release* antes da sinalização com o código realizado na operação *acquire* após o retorno da chamada a *condition.signal*. Como o monitor de *Lampson* e *Redell* não garante aquela atomicidade, <ins>o **estilo kernel** recupera-a movendo o código que actualiza o estado de sincronização na operação *acquire* após o bloqueio para a operação *release* que cria condições para concluir a operação *acquire*</ins>.
+- A título de curiosidade, o "estilo *kernel*" procura resgatar a atomicidade proposta por *Brinch Hansen* e *Hoare* para a sinalização das *threads* bloqueadas no monitor. Esta semântica, garantia atomicidade do código realizado pela operação *release* antes da sinalização com o código realizado na operação *acquire* após o retorno da chamada a *condition.signal*. Como o monitor de *Lampson* e *Redell* não garante aquela atomicidade, <ins>o **estilo kernel** recupera-a movendo o código que actualiza o estado de sincronização na operação *acquire* após o bloqueio para a operação *release* que cria condições para concluir a operação *acquire*</ins>.
 
    
