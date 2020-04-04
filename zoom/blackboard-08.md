@@ -261,6 +261,7 @@ class MonitorEx {
 		} while (true);
 	}
 }
+```
 
 - O código de reaquisição do *lock* do monitor deverá ser o seguinte:
 
