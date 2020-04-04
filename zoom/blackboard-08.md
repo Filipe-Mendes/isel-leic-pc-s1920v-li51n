@@ -123,14 +123,10 @@ class MessageQueueMonitorStyleExplicitMonitor<T> {
 	private boolean canAcquire() { return pendingMessages.size() > 0; }
 
 	// removes a message from the pending messages list and returns it
-	private T acquireSideEffect() {
-		return pendingMessages.poll();
-    }
+	private T acquireSideEffect() { return pendingMessages.poll(); }
 
 	// add the sent message to the pendingMessages list
-	private void updateStateOnRelease(T sentMessage) {
-    	pendingMessages.addLast(sentMessage);
-    }
+	private void updateStateOnRelease(T sentMessage) { pendingMessages.addLast(sentMessage); }
 
 	/**
 	 * Synchronizer independent methods
@@ -192,20 +188,20 @@ class MessageQueueMonitorStyleExplicitMonitor<T> {
 - A chamada do método ​**get** deve ter o seguinte comportamento: (a) caso o valor já tenha sido calculado, e ainda não tenha sido usado **​lives** vezes, retorna esse valor; (b) caso o valor ainda não tenha sido calculado ou já tenha sido usado ​**lives** vezes, inicia o cálculo de novo valor, chamando **​supplier** na própria ​*thread* invocante (depois de *sair* do monitor) e retorna o valor resultante; (c) caso já exista outra ​*thread* a realizar esse cálculo, espera até que o valor esteja calculado; (d) retorna *​empty* caso o tempo de espera exceda ​timeout​, e; (e) lança ​InterruptedException se a espera da ​thread for interrompida. Caso a chamada a ​*supplier* resulte numa excepção, o objeto passa para um estado de erro, lançando essa excepção em todas as chamadas a **get**​.
 
 - A semântica de sincronização deste sincronizador pode ser bem implementada com uma máquina de estados, com os seguintes estados:
-	- UNCREATED: o valor não está disponível porque não foi ainda calculado ou porque já foram consumidas todas as vidas de um valor calculado previamente;
-	- CREATING: encontra-se uma *thread* a calcular o valor;
-	- CREATED: o valor está disponível para ser usado *lives* vezes;
-	- ERROR: ocorreu uma excepção na chamada a **supplier** e o sincronizador ficou em estado de erro.
+	- `UNCREATED`: o valor não está disponível porque não foi ainda calculado ou porque já foram consumidas todas as vidas de um valor calculado previamente;
+	- `CREATING`: encontra-se uma *thread* a calcular o valor;
+	- `CREATED`: o valor está disponível para ser usado *lives* vezes;
+	- `ERROR`: ocorreu uma excepção na chamada a **supplier** e o sincronizador ficou em estado de erro.
 
 - Dados immutáveis (qualificador `final`):
-	- *supplier*
-	- *lives*
+	- `supplier`
+	- `lives`
 	
 - Estado de sincronização mutável:
-	- *state*
-	- *value*
-	- *current_lives*
-	- *exception*
+	- `state`
+	- `value`
+	- `current_lives`
+	- `exception``
 
 #### Estrutura do método `BoundedLazy<T>.get` usando um monitor implícito do *Java* 
 	
