@@ -236,9 +236,9 @@ Optional<T> get(long timeout) throws InterruptedException {
 }
 ```
 
-### Acquisição dos Locks do Monitor Implícito .NET e Reentrada no Monitor
+### Acquisição do *Lock* do Monitor Implícito do .NET e Reentrada no Monitor
 
-- No .NET pode ser lançada a excepçao ThreadInterruptException na aquisição do *lock* dos monitores implícitos, nas circunstâncias em que a *thread* invocante seja interrompida enquanto aguarda a aquisição do *lock*. (Em *Java* isto não acontece com os monitores implícitos e só acontece nos monitores explícitos se o *lock* for adquirido com o método `Lock.lockInterruptibly`).
+- No .NET pode ser lançada a excepçao `ThreadInterruptException` na aquisição do *lock* dos monitores implícitos, nas circunstâncias em que a *thread* invocante seja interrompida enquanto aguarda a aquisição do *lock*. (Em *Java* isto não acontece com os monitores implícitos e só acontece nos monitores explícitos se o *lock* for adquirido com o método `Lock.lockInterruptibly`).
 
 - Assim, a reaquisição obrigatória do *lock* de um monitor implícito em .NET deve ser feita do seguinte modo:
 
