@@ -129,13 +129,15 @@ class GenericSynchronizerKernelStyleImplicitMonitor {
 	// generic acquire operation; returns null when it times out
     public AcquireResult acquire(AcquireArgs acquireArgs, long millisTimeout) throws InterruptedException {
         synchronized(monitor) {
-			// if the current thread was previously interrupted, throw the appropriate exception.
-			//
-			// this anticipates the launch of the interrupt exception that would otherwise be thrown
-			// as soon as the current thread invoked a "managed wait" (e.g., invoked Object.wait to
-			// block itself in the monitor condition variable).
-	        if (Thread.interrupted())
-                throw new InterruptedException();
+			/**
+			 * if the current thread was previously interrupted, throw the appropriate exception.
+			 *
+			 * this anticipates the launch of the interrupt exception that would otherwise be thrown
+			 * as soon as the current thread invoked a "managed wait" (e.g., invoked Object.wait to
+			 * block itself in the monitor condition variable).
+			 */
+			if (Thread.interrupted())
+				throw new InterruptedException();
 			
 			// if the request queue is empty and the current synchronization state allows
 			// an immediate acquire, do the acquire side effect and return the proper result.
