@@ -227,7 +227,7 @@ Optional<T> get(long timeout) throws InterruptedException {
 			throw ex; 
 		} else {
 			value = v;
-			current_lives = lives;
+			current_lives = lives - 1;
 			state = CREATED;
 			// notify all bloqued threads
 			return Optional.of(value);
