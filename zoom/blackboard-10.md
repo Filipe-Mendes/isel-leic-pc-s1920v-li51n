@@ -362,8 +362,8 @@ public class MessageQueueKernelStyleImplicitExtendedMonitorSpecificNotifications
 				request.done = true;
 				// notify waiting thread on its private condition variable
 				MonitorEx.Pulse(monitor, request);
-            } else {
-                // no receiver thread waiting, so the message is left in the pending
+			} else {
+				// no receiver thread waiting, so the message is left in the pending
 				// messages queue
 				UpdateStateDueToSend(sentMsg);
 			}
