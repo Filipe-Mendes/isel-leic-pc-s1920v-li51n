@@ -240,9 +240,9 @@ public static class MonitorEx {
 
 ### *Message Queue*  ao "estilo *kernel*" com base na extensão ao monitor implícito do .NET
 
-- O código que se apresenta a seguir resulta da adaptação do pseudo-código apresentado anteriormente à implementação da *message queue*, usando também nomes mais sugestivos para os métodos auxiliares:
+- O código que se apresenta a seguir resulta da adaptação do pseudo-código apresentado anteriormente à implementação da *message queue*, usando também nomes mais sugestivos para os métodos:
 	- O objecto `Request` para além do campo `done` necessita de ter um campo equivalente ao `acquireResult`, aqui designado `receivedMsg`, para armazenar a mensagem que vai ser entregue à respectiva *receiver thread*;
-	- O método `canAcquire, aqui designado `canReceive`, indica se existe pelo menos uma  mensagem pendente para recepção;
+	- O método `canAcquire`, aqui designado `canReceive`, indica se existe pelo menos uma  mensagem pendente para recepção;
 	- O método `acquireSideEffect`, aqui designado `receiveSideEffect`, retira a próxima mensagem da fila e retorna-a para ser entregue à *receiver thread*; 
 	- O método `updateOnRelease`, aqui designado `UpdateStateOnSend`, insere a mensagem enviada na lista com as mensagens pendentes para recepção;
 	- As assinatura dos métodos *acquire* (`Receive`) e *release* (`Send`) foram ajustadas para corresponder aos tipos dos parâmetros formais e dos valores de retorno;
