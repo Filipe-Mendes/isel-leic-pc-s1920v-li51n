@@ -242,8 +242,8 @@ public static class MonitorEx {
 
 - O código que se apresenta a seguir resulta da adaptação do pseudo-código apresentado anteriormente à implementação da *message queue*, usando também nomes mais sugestivos para os métodos:
 	- O objecto `Request` para além do campo `done` necessita de ter um campo equivalente ao `acquireResult`, aqui designado `receivedMsg`, para armazenar a mensagem que vai ser entregue à respectiva *receiver thread*;
-	- O método `canAcquire`, aqui designado `canReceive`, indica se existe pelo menos uma  mensagem pendente para recepção;
-	- O método `acquireSideEffect`, aqui designado `receiveSideEffect`, retira a próxima mensagem da fila e retorna-a para ser entregue à *receiver thread*; 
+	- O método `canAcquire`, aqui designado `CanReceive`, indica se existe pelo menos uma  mensagem pendente para recepção;
+	- O método `acquireSideEffect`, aqui designado `ReceiveSideEffect`, retira a próxima mensagem da fila e retorna-a para ser entregue à *receiver thread*; 
 	- O método `updateOnRelease`, aqui designado `UpdateStateOnSend`, insere a mensagem enviada na lista com as mensagens pendentes para recepção;
 	- As assinatura dos métodos *acquire* (`Receive`) e *release* (`Send`) foram ajustadas para corresponder aos tipos dos parâmetros formais e dos valores de retorno;
 	- Neste sincronizador a desistência de uma *receiver thread* na operação *acquire* não cria condições para que outras *receiver threads* bloqueadas possam completar a respectiva operação, pelo que o código que trata este aspecto não foi incluído.
