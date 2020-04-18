@@ -547,7 +547,7 @@ public class SemaphoreKernelStyleImplicitMonitor {
 }
 
 /**
- * Semaphore following the kernel style, using an *implicit-extended .NET monitor*,
+ * Semaphore following the "kernel style", using an *implicit-extended .NET monitor*,
  * with support for timeout on the acquire operation.
  * 
  * NOTE: This implementation uses specific thread notifications.
@@ -557,7 +557,7 @@ public class SemaphoreKernelStyleImplicitExtendedMonitorSpecificNotifications {
     // extended .NET monitor provides synchronization of the access to the shared
     // mutable state, supports the control synchronization inherent to acquire/release
     // semantics.
-    // Using th extension implemented by the MonitorEx class, other implicit .NET
+    // Using the extension implemented by the MonitorEx class, the other implicit .NET
     // monitors, associated to the Request objects, will be used as condition variables
     // subordinate to the monitor represented by "monitor". 
     private Object monitor = new Object();
@@ -803,110 +803,112 @@ public class MessageQueueKernelStyleImplicitMonitor<T> {
  */
 
 public class MessageQueueKernelStyleImplicitExtendedMonitorSpecificNotifications<T> {
-    // extended .NET monitor provides synchronization of the access to the shared
-    // mutable state, supports the control synchronization inherent to acquire/release
-    // semantics.
-    // Using th extension implemented by the MonitorEx class, other implicit .NET
-    // monitors, associated to the Request objects, will be used as condition variables
-    // subordinate to the monitor represented by "monitor". 
-    private Object monitor = new Object();
+	// extended .NET monitor provides synchronization of the access to the shared
+	// mutable state, supports the control synchronization inherent to acquire/release
+	// semantics.
+	// Using the extension implemented by the MonitorEx class, other implicit .NET
+	// monitors, associated to the Request objects, will be used as condition variables
+	// subordinate to the monitor represented by "monitor". 
+	private Object monitor = new Object();
+	
+	// the instance of this type is used to hold a receive request
+	private class Request {
+		internal T receivedMsg; // received message
+		internal bool done;     // true when done
+	}
+	
+	// queue of pending receive requests
+	private LinkedList<Request> reqQueue = new LinkedList<Request>();
+	
+	// synchronization state: list of messages pending for reception
+	private LinkedList<T> pendingMessages = new LinkedList<T>()
+		
+	// initialize the message queue
+	public MessageQueueKernelStyleImplicitExtendedMonitorSpecificNotifications() { }
+	
+	// returns true if there is an pending message, which means that receive
+	// can succeed immediately
+	private bool CanReceive() { return pendingMessages.Count > 0; }
+	
+	// when a message is received, it must be removed from the pending message list
+	private T ReceiveSideEffect() {
+		T receivedMessage = pendingMessages.First.Value;
+		pendingMessages.RemoveFirst();
+		return receivedMessage;
+	}
+	
+	// add the sent message to the pending messages list
+	private void UpdateStateOnSend(T sentMessage) { pendingMessages.AddLast(sentMessage); }
+	
+	// receive the next message from the queue
+	public bool Receive(out T receivedMsg, int timeout = Timeout.Infinite) {
+		lock (monitor) {
+			if (reqQueue.Count == 0 && CanReceive()) {
+				receivedMsg = ReceiveSideEffect();
+				return true;
+			}
+			// add a request to the end of the reqQueue
+			Request request = new Request();
+			reqQueue.AddLast(request);
+			TimeoutHolder th = new TimeoutHolder(timeout);
+			do {
+				if ((timeout = th.Value) == 0) {
+					// the specified time limit has expired.
+					// Here we know that our request was not satisfied.
+					reqQueue.Remove(request);
+					receivedMsg = default(T);
+					return false,
+				}
+				try {
+					MonitorEx.Wait(monitor, request, timeout);  //block on private condition variable
+				} catch (ThreadInterruptedException) {
+					// if the acquire operation was already done, re-assert interrupt
+					// and return normally; else remove request from queue and throw
+					// ThreadInterruptedException.
+					if (request.done) {
+						Thread.CurrentThread.Interrupt();
+						break;
+					}
+					reqQueue.Remove(request);
+					throw;
+				}
+			} while (!request.done);
+			receivedMsg = request.receivedMsg;
+			return true;
+		}
+	}
 
-    // the instance of this type used to hold a receive request
-    private class Request {
-        internal T receivedMsg; // received message
-        internal bool done;     // true when done
-    }
-
-    // queue of pending receive requests
-    private LinkedList<Request> reqQueue = new LinkedList<Request>();
-
-    // synchronization state: list of messages pending for reception
-    private LinkedList<T> pendingMessages = new LinkedList<T>();
-
-    // initialize the message queue
-    public MessageQueueKernelStyleImplicitExtendedMonitorSpecificNotifications() { }
-
-    // returns true if there is an pending message, which means that receive
-    // can succeed immediately
-    private bool CanReceive() { return pendingMessages.Count > 0; }
-
-    // when a message is received, it must be removed from the pending message list
-    private T ReceiveSideEffect() {
-        T receivedMessage = pendingMessages.First.Value;
-        pendingMessages.RemoveFirst();
-        return receivedMessage;
-    }
-
-    // add the sent message to the pending messages list
-    private void UpdateStateOnSend(T sentMessage) { pendingMessages.AddLast(sentMessage); }
-
-    // receive the next message from the queue
-    public bool Receive(out T receivedMsg, int timeout = Timeout.Infinite) {
-        lock (monitor) {
-            if (reqQueue.Count == 0 && CanReceive()) {
-                receivedMsg = ReceiveSideEffect();
-                return true;
-            }
-            TimeoutHolder th = new TimeoutHolder(timeout);
-            Request request = new Request();
-            reqQueue.AddLast(request);  // enqueue "request" at the end of  "reqQueue"
-            do {
-                if ((timeout = th.Value) == 0) {
-                    // the specified time limit has expired.
-                    // Here we know that our request was not met.
-                    reqQueue.Remove(request);
-                    receivedMsg = default(T);
-                    return false;
-                }
-                try {
-                    MonitorEx.Wait(monitor, request, timeout);  //block on private condition variable
-                } catch (ThreadInterruptedException) {
-                    // if the acquire operation was already done, re-assert interrupt
-                    // and return normally; else remove request from queue and throw 
-                    // ThreadInterruptedException.
-                    if (request.done) {
-                        Thread.CurrentThread.Interrupt();
-                        break;
-                    }
-                    reqQueue.Remove(request);
-                    throw;
-                }
-            } while (!request.done);
-            receivedMsg = request.receivedMsg;
-            return true;
-        }
-    }
-
-    // send a message to the queue
-    public void Send(T sentMsg) {
-        lock (monitor) {
-            UpdateStateOnSend(sentMsg);
-            if (reqQueue.Count > 0) {
-                Request request = reqQueue.First.Value;
-                reqQueue.Remove(request);
-                request.receivedMsg = ReceiveSideEffect();
-                request.done = true;
-                // notify waiting thread on its private conditions variable
-                MonitorEx.Pulse(monitor, request);
-            }
-        }
-    }
-
-    // send a message to the queue (optimized)
-    public void SendOptimized(T sentMsg) {
-        lock (monitor) {
-            if (reqQueue.Count > 0) {
-                // deliver the message directly to a blocked thread
-                Request request = reqQueue.First.Value;
-                reqQueue.Remove(request);
-                request.receivedMsg = sentMsg;
-                request.done = true;
-                // notify waiting thread on its private conditions variable
-                MonitorEx.Pulse(monitor, request);
+	// send a message to the queue
+	public void Send(T sentMsg) {
+		lock (monitor) {
+			UpdateStateOnSend(sentMsg);
+			if (reqQueue.Count > 0) {
+				Request request = reqQueue.First.Value;
+				reqQueue.RemovestFirst();
+				request.receivedMsg = ReceiveSideEffect();
+				request.done = true;
+				// notify waiting thread on its private condition variable
+				MonitorEx.Pulse(monitor, request);
+			}
+		}
+	}
+	
+	// send a message to the queue (optimized)
+	public void SendOptimized(T sentMsg) {
+		lock (monitor) {
+			if (reqQueue.Count > 0) {
+				// deliver the message directly to a blocked thread
+				Request request = reqQueue.First.Value;
+				reqQueue.RemoveFirst();
+				request.receivedMsg = sentMsg;
+				request.done = true;
+				// notify waiting thread on its private condition variable
+				MonitorEx.Pulse(monitor, request);
             } else {
-                // no receiving thread, so the message is left in the respective queue
-                UpdateStateDueToSend(sentMsg);
-            }
-        }
-    }
+                // no receiver thread waiting, so the message is left in the pending
+				// messages queue
+				UpdateStateDueToSend(sentMsg);
+			}
+		}
+	}
 }
