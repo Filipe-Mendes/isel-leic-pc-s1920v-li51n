@@ -12,7 +12,7 @@ ____
 - A seguir, apresentam-se três implementações do sincronizador *manual-reset event*: (i) a primeira segue o "estilo *kernel*" sem qualquer optimização; (ii) a segunda, partilha o objecto *request* entre todas as *acquirer threads* e usa uma versão simplificada de fila de espera, e; (iii) a terceira versão que não usa objecto *request* nem fila de espera explícita.
 
 
-### Sem optimizações
+## Sem optimizações
 
 - Nesta implementação faz-se um tratamento diferente da interrupção daquele que foi proposto na formulação genérica do "estilo kernel", que é dar prioridade à notificação da onclusão da operação *acquire* sobre a interrupção da *acquirer thread*.
 
@@ -100,7 +100,7 @@ public class ManualResetEvenKernelStyletNaive {
 	}
 }
 ```
-### Partilhando o objecto *request* e usando uma versão simplificada de fila de espera
+## Partilhando o objecto *request* e usando uma versão simplificada de fila de espera
 
 - Nesta implementação todas as *threads* bloqueadas na operação *acquire* partilham o mesmo objecto *request* sendo a fila de espera implementada apenas com base numa referência.
 
@@ -208,7 +208,7 @@ public class ManualResetEvenKernelStyleShareRequest {
 }
 ```
 
-### Sem usar objecto *request* nem fila de espera
+## Sem usar objecto *request* nem fila de espera
 
 - Quando a operação *acquire* não tem resultado como é o caso no *manual-reset event* a única coisa que as *acquirer threads* necessitam de testar quando reentram no monitor, após notificação, é se já ocorreu a operação *release* (neste caso, o *set* do evento) após as mesmas se terem bloqueado.
 
@@ -266,7 +266,7 @@ public class ManualResetEventSlimOptimized {
 	}
 }
 ```
-## *Read/Write Lock*
+## Implementação de um *Read/Write Lock*
 
 - O *read/write lock* é um sincronizador que tem algumas particularidades interressantes e que também pode ser parcialmente optimizado usando as técnicas apresentadas anteriormente.
 
@@ -274,180 +274,192 @@ public class ManualResetEventSlimOptimized {
 
 - Uma implementação correcta deste sincronizador deverá assegurar que não deve haver a possibilidade de *starvation* das *threads* leitoras relativamente às *threads* escritoras nem vice-versa. Para evitar esta *starvation* pode utilizar-se uma das duas seguintes semânticas:
 
-	- Hoare, no seu artigo onde propõe o conceito de monitor, propõe a seguinte semântica: (a) um pedido de *write lock* pendente impede a concessão de novos *read locks*; (b) quando é libertado um *write lock* são concedidos todos *read locks* a 
+	- *Hoare*, no seu artigo onde propõe o conceito de monitor, propõe a seguinte semântica: (a) um pedido de *write lock* pendente impede a concessão de novos *read locks*; (b) quando é libertado um *write lock* são concedidos todos *read locks* a 
+	- No *kernel* do *Linux* a implementação do *read/write lock* resolve o problema do *startvation* das *threads* leitoras e escritores servindo todos os pedidos de *lock read* e *lock write* com uma fila de espera com disciplina FIFO. Nesta abordagem, sempre que a fila de espera não está vazia as solicitações de *read* ou *write* *lock* são colocadas em fila de espera; quando o *lock* fica livre, é conceido o *lock* à *writer thread* que esteja à cabeça da fila de espera ou a uma ou mais *reader threads* que se encontrem adjacentes à cabeça da fila de espera.
 
-- São ter em atenção a possibilidade de
-- Um escritor em fila de espera impede a entrada de novos leitores
+- A implementação que se apresenta a seguir segue a semântica proposta por *Hoare*. São utilizadas duas filas de espera, uma normal onde são inseridos os pedidos pendentes de *write lock* e outra simplificada onde constam os pedidos de *real lock* pendentes. São também utilizadas notificações específicas para optimizar as comutações de *threads*.
 
-- Quando é libertado o *lock* de escrita são concedidos *locks* de leitura a todas as thread leitoras bloqueadas
-
+```Java
 class ReadWriteLockOptimized {
-	private final Lock mlock;
-	private final Condition okToRead;
+	private final Lock mlock; 			// the monitor's lock
+	private final Condition okToRead;	// condition variable where readers are blocked
+	private int state = 0; // -1 when writing, 0 when free, > 0 when reading (# of readers)
 	
-	int state = 0;		// -1 when writing, 0 when free, > 0 when reading (# of readers)
-
-	// shared read lock request
+	// All waiting readers share the same request, because
+	// because the respective request is guaranteed in group
 	private static class LockReadRequest {
-		int waiters = 1;
-		boolean done;
+		int waiters = 1; 			// created by the first waiting reader
+		boolean done;				// set to true when the request is satisfied
 	}
-	
-	// request object for witers
+
+	// request object used for writers
 	private static class LockWriteRequest {
-		final Condition okToWrite;
-		boolean done;
-		
-		LockWriteRequest(Condition oktow) { okToWrite = owtow; }
+		final Condition okToWrite;	// conditon ver where the writer is waiting
+		boolean done; 				// set true when the request is satisfied
+
+		LockWriteRequest(Condition oktow) { okToWrite = oktow; }
 	}
-	
-	// request queues
+	// We use a queue for waiting readers and a queue for waiting writers.
+	// For each queue node holds an object with a boolean fields that says if
+	// the requested access was already granted or not.
 	private LockReadRequest readReqQueue;	// null when queue is empty
 	private final LinkedList<LockWriteRequest> writeReqQueue;
-	
-	// ctor
+
+	// Constructor.
 	public ReadWriteLockOptimized() {
 		mlock = new ReentrantLock();
 		okToRead = mlock.newCondition();
 		readReqQueue = null;
-		writeReqQueue = new LinkedList<>();
+		writeReqQueue = new LinkedList<LockWriteRequest>();
 	}
-	
-	/**
-	 * Methods that implement the lock read "request queue"
+
+	/*
+	 * Methods that implement the lock read request queue
 	 */
-	private void enqueueReader() {
-		if (readReqQueue = null)
+
+	private LockReadRequest enqueueReader() {
+		if (readReqQueue == null)
 			readReqQueue = new LockReadRequest();
 		else
-			readReqQueue.waiters++
+			readReqQueue.waiters++;
 		return readReqQueue;
 	}
-	
-	private dequeueReader() {
-		if (--readReqQueue.waiters == 0)
-			readReqQueue = null;
+
+	private void removeReader() {
+		if (readReqQueue != null)
+			readReqQueue.waiters--;
+		else
+			System.out.println("Ooops!!!");
 	}
-	
+
 	private int waitingReaders() {
-		return readReqQueue != null ? readReqQueue.waiters : 0; 
+		return readReqQueue != null ? readReqQueue.waiters : 0;
 	}
-	
-	private int clearReaderQueue() { readReqQueue = null; }
-	
+
+	private void clearReaderQueue() { readReqQueue = null; }
+
+	// Acquire the lock for read (shared) access
 	public void lockRead() throws InterruptedException {
 		mlock.lock();
 		try {
-			if (Thread.interrupted())
-				throw new InterruptedException();
-				
+			// if there isn’t blocked writers and the resource isn’t being written, grant
+			// read access immediately
 			if (writeReqQueue.size() == 0 && state >= 0) {
 				state++;
 				return;
 			}
-			
+
+			// otherwise, create a request object and enqueue it
 			LockReadRequest request = enqueueReader();
+			// wait until request is granted, or the thread gives up due to interruption
 			do {
 				try {
-					okToRead.await();			
+					okToRead.await();
 				} catch (InterruptedException ie) {
+					// if the requested shared access was granted, we must re-assert interrupt
+					// exception, and return normally.
 					if (request.done) {
 						Thread.currentThread().interrupt();
 						break;
 					}
-					dequeueReader();
+					// otherwise, we remove the request from the queue and re-throw the exception
+					removeReader();
 					throw ie;
 				}
+				// if shared access was granted then return; otherwise, re-wait
 			} while (!request.done);
 		} finally {
 			mlock.unlock();
 		}
 	}
-	
-	// grant access to all waiting readers
+
+	// auxiliary method: grant access to all waiting readers
 	private boolean grantAccessToWaitingReaders() {
 		if (waitingReaders() > 0) {
-			state += waitingReaders();	// account with all nes active readers
+			state += waitingReaders(); 	// account with all new active readers
 			readReqQueue.done = true;
 			clearReaderQueue();
-			okToRead.signalAll();
+			okToRead.signalAll(); 		// notify all waiting readers
 			return true;
 		}
 		return false;
 	}
-	
-	// grant access to the first waiting write
-	private void grantAccessToWaitingWRiter() {
+
+	// auxiliary method: grant access to the first waiting writer
+	private void grantAccessToAWaitingWriter() {
 		if (writeReqQueue.size() > 0) {
-			LockWriteRequest request = writeReqQueue.poll();	// remove first writer
-			request.done = true;
-			state = -1;
-			request.okToWrite.signal();
+			LockWriteRequest request = writeReqQueue.poll();	// remove the first element of the queue
+			request.done = true;	// mark write request as granted
+			state = -1; 			// exclusive lock was taken
+			request.okToWrite.signal(); // notify waiting writer at its private condition variable
 		}
 	}
-	
+
+	// Acquire the lock for write (exclusive) access
 	public void lockWrite() throws InterruptedException {
-		mlock.lcok();
+		mlock.lock();
 		try {
-			
-			if (Thread.interrupted())
-				throw new InterruptedException();
-				
+			// if the lokc isn’t held for read nor for writing, grant the access immediately
 			if (state == 0) {
 				state = -1;
 				return;
 			}
-			
-			LockWriteReqest request = new LockWriteREquest(mlock.newCondition());
+			// create and enqueue a request for exclusive access
+			LockWriteRequest request = new LockWriteRequest(mlock.newCondition());
 			writeReqQueue.addLast(request);
-			
+			// wait until request is granted, or the thread gives up due to interruption
 			do {
 				try {
 					request.okToWrite.await();
 				} catch (InterruptedException ie) {
+					// if exclusive access was granted, then we re-assert exception, and return
+					// normally
 					if (request.done) {
 						Thread.currentThread().interrupt();
 						break;
 					}
-					
-					// give up
+					// othwewise, remove the request from the queue, and return throwing the
+					// exception.
 					writeReqQueue.remove(request);
-					
-					// ????
-					if (writeReqQueue.size() == 0 && waitingReaders() && state >= 0)
-						grantAccessToWaitingReaders();		
+
+					// when a waiting writer gives up, we must grant shared access to all
+					// waiting readers that has been blocked by this waiting writer
+					if (writeReqQueue.size() == 0 && waitingReaders() > 0 && state >= 0)
+						grantAccessToWaitingReaders();
+					throw ie;
 				}
+				// if the request was granted return, else re-wait
 			} while (!request.done);
 		} finally {
 			mlock.unlock();
 		}
 	}
-	
-	// release read (shared) lock
+
+	// Release read (shared) lock
 	public void unlockRead() {
 		mlock.lock();
 		try {
+			// decrement the number of active readers
+			// if this is the last active reader, and there is at least a blocked writer,
+			// grant access
+			// to the writer that is at front of queue
 			if (--state == 0 && writeReqQueue.size() > 0)
-				grantAccessToWaitingWriter();
+				grantAccessToAWaitingWriter();
 		} finally {
 			mlock.unlock();
 		}
 	}
-	
+
+	// Release the write (exclusive) lock
 	public void unlockWrite() {
 		mlock.lock();
 		try {
-			state = 0;	// mark lock as free
+			state = 0;		// mark lock as free
 			if (!grantAccessToWaitingReaders())
-				grantAccessToWaitingWriter();
+				grantAccessToAWaitingWriter();
 		} finally {
 			mlock.unlock();
 		}
-	}	
+	}
 }
-
-
-
-
-
-
+```
