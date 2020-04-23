@@ -104,7 +104,7 @@ public class ManualResetEvenKernelStyletNaive {
 
 - Nesta implementação todas as *threads* bloqueadas na operação *acquire* partilham o mesmo objecto *request* sendo a fila de espera implementada apenas com base numa referência.
 
-- O objecto *request* deve ter o campo *done* e, no caso da respectiva operação *acquire* ter resultado um campo para armazenar o resultado a ser entregue a todas as *threads* (No BroadcastBox<T> pode fazer-se esta optimização e é uma situação em que o objecto *request* tem que ter um campo para entregar a mensagem a todas as *receiver threads* quando é enviada uma mensagem.)
+- O objecto *request* deve ter o campo *done* e, no caso da respectiva operação *acquire* ter resultado um campo para armazenar o resultado a ser entregue a todas as *threads* (No `BroadcastBox<T>` pode fazer-se esta optimização e é uma situação em que o objecto *request* tem que ter um campo para entregar a mensagem a todas as *receiver threads* quando é enviada uma mensagem.)
 
 - A fila de espera pode ser implementada com uma referência para o objecto *request* e com um contador para armazenar o número de *waiting threads*. Embora esta informação não seja necessária na implementação do *manual-reset event* vamos considerá-la para tornar a implementação da fila de espera mais genérica. (Adiante, na implementação de um *read/write lock* veremos como essa informação é utilizada.)
 
