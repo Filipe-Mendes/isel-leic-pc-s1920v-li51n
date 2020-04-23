@@ -20,7 +20,7 @@ ____
 
 	- O mecanismo da interrupção é normalmente usado para alertar as *threads* de que devem fazer algo considerado "excepcional" (e.g., terminação graciosa), enquanto que a notificação da conclusão da operação *acquire* faz parte do seu processamento considerado "normal";
 	
-	- A solução proposta na formulação genérica do "estilo *kernel*" adia a notificação de que a *acquirer thread* foi interrompida. Esta é, de facto, a única solução, para suportar interrupções, em sincronizadores onde não é possível fazer *undo* da operação *acquire* (e.g., `BroadcastBox<T>` ou o `Exchanger<T>).
+	- A solução proposta na formulação genérica do "estilo *kernel*" adia a notificação de que a *acquirer thread* foi interrompida. Esta é, de facto, a única solução, para suportar interrupções, em sincronizadores onde não é possível fazer *undo* da operação *acquire* (e.g., `BroadcastBox<T>` ou o `Exchanger<T>`).
 	
 	- Contudo, em sincronizadores em que a operação *acquire* não tem efeitos colaterais sobre o estado de sincronização (como acontece no *manual-reset event*), fa sentido das prioridade ao comportamento que acima designámos por "excepcional" sobre aquele que designámos por "normal".
 	
