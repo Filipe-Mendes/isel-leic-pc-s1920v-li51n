@@ -157,7 +157,7 @@ public class NoVisibility {
 ---|------- *acquire barrier* 
    |   ^
    V   |
-	   |
+       |
 ```
 
 #### *Release Barrier*
