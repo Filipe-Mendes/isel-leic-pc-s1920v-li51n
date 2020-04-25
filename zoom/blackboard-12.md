@@ -154,7 +154,7 @@ public class NoVisibility {
 
 ```
    |	  
----|------- *acquire barrier* 
+===|======= *acquire barrier* 
    |   ^
    V   |
        |
@@ -166,22 +166,26 @@ public class NoVisibility {
 
 - Graficamente:
 
+```
    |
    |   ^
    v   |
--------|--- *release barrier*
+=======|=== *release barrier*
        |
+```
 
 #### *Release Barrier*
 
 - Combina a semântica *acquire* seguida da semântica *release* (*read-modify-write* ou instrução *mfence*). Isto é, o efeito da instrução é globalmente vísivel **depois** do efeito de todas as instruções que vêm **antes** da barreira e **antes** do efeito de todas as instruções que vêm **depois**. Salienta-se que a sequência de uma instrução com semântica *realease* seguida de uma instrução com semântica *aqcuire* não forma uma *full-fence*, porque as respectivas semânticas não impedem que as instruções barreira sejam reordenadas entre si. No .NET uma escrita *volatile* (*release*) pode ser reordenada com uma leitura *volatile* (*acquire*) que venha a seguir, o que, como veremos adiante, não acontece em *Java*.   
 
 - Graficamente:
- 
+
+```
    |	  
    V
------------ *full-fence* 
+============ *full-fence* 
        ^
        |
+```
 
 ____
