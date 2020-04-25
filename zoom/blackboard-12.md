@@ -26,12 +26,13 @@ public class NoVisibility {
 		}
 	}	
 
-    public static void main(String... args) throws InterruptedException {	
-        new ReaderThread().start();	
+	public static void main(String... args) throws InterruptedException {
+		new ReaderThread().start();
 		Thread.sleep(100);	// allow ReaderThread to start before set shared data
-	    number = 42;
-	    ready = true;
+		number = 42;
+		ready = true;
 	}
+}
 ```
 
 - No exemplo, a intenção era que a *reader thread* fizesse *spin* até que visse o campo `ready` com o valor `true` para depois mostrar na consola o valor do campo `number`, que deveria ser 42. Embora esse seja o comportamento óbvio se compilarmos and executarmos este programa conctatamos que a *reader thread* não chega a mostrar nenhum valor, pois nunca chega a ver o valor `true` no campo `ready`.
@@ -151,11 +152,13 @@ public class NoVisibility {
    
 - Graficamente:
 
+```
    |	  
 ---|------- *acquire barrier* 
    |   ^
    V   |
 	   |
+```
 
 #### *Release Barrier*
 
