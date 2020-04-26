@@ -134,24 +134,22 @@ public class NoVisibility {
 
 ### Modelos de Memória das Plataformas
 
-- Numa arquitectur *shared-memory multiprocessor*, cada processdor tem a sua própria *cache* que é periodicamente reconciliada com a memória principal. As arquitecturas dos processadores providenciam vários graus de *cache choerence*, alguns providenciam garantias mínimas que permitem a diferentes processadores ver valores diferentes para a mesma localização da memória a virtualmente a  qualquer momento.
+- Numa arquitectura *shared-memory multiprocessor*, cada processdor tem a sua própria *cache* que é periodicamente reconciliada com a memória principal. As várias arquitecturas providenciam diferentes graus de *cache choerence*, alguns providenciam garantias mínimas que permitem a diferentes processadores ver valores diferentes para a mesma localização da memória.
 
-- O sistema operativo, compilador e *runtime* (e por vezes o programa também) devem prefazer as diferenças entre aquilo que o *hardware* providencia e aquilo que a *thread safety* exige.
+- O sistema operativo, compilador e *runtime* (e por vezes o também o programa) devem prefazer as diferenças entre aquilo que o *hardware* providencia e aquilo que a obtenção  de *thread safety* exige.
 
-- O **modelo de memória** de uma arquitectura diz aos programas quais as garantias que podem esperar do sistema de memória, e especifica as instruções especiais necessárias (designadas por *memory barriers* ou *fences*) para obter garantias adicionais de coordenação necessárias quando se partilham dados.
+- O **modelo de memória de uma arquitectura** diz quais são as garantias que os programas podem esperar do sistema de memória, e especifica as instruções especiais necessárias (designadas por *memory barriers* ou *fences*) para obter as garantias adicionais de coordenação que são necessárias quando se partilham dados entre *threads*.
 
-- Para proteger os projectistas das diferenças entre os modelos de memória das várias arquitecturas, o *Java* e o .NET providenciam os seus próprios modelos de memória e a JVM e o CLR lidam com as diferenças em os seus modelos de memória e os modelos de memória das aqruitecturas inserindo barreiras de memória nos sítios adequados.   
+- Para isolar os projectistas das diferenças entre os modelos de memória das várias arquitecturas, o *Java* e o .NET providenciam os seus próprios modelos de memória; a *Java Virtual Machine* e o *Common Language Runtime* lidam com as diferenças em os seus modelos de memória e os modelos de memória das aqruitecturas, inserindo as barreiras de memória necessárias nos sítios adequados.   
 
 ### Barreiras de Memória
 
-- Os vários processadores e arquitecturas suportam uma grande variedades de instruções especiais para interpor barreiras de memória. Contudo, os modelos de memória do *Java* e do .NET podem ser completamente explicados com a referência a três tipo de barreiras de memória: *acquire barrier*, *release barrier* e *full-fence*.
+- Os vários processadores e arquitecturas suportam uma variedades de instruções especiais para interpor barreiras de memória. Contudo, os modelos de memória do *Java* e do .NET podem ser completamente explicados com a referência a apenas três tipo de barreiras de memória: *acquire barrier*, *release barrier* e *full-fence*.
 
 #### *Acquire Barrier*
 
-- Uma instrução barreira com semântica *acquire* (associada a um *read*) implica que o efeito da instrução é globalmente visível **antes** do efeito de todas as instruções subsequentes. Por outras palavras, a instrução barreira impede que as instruções que vêm depois possam ser movidas para **antes** da barreira. Este tipo de barreira não coloca qualquer limitação ao movimento das instruções que vêm antes da barreira.  
+- Uma instrução barreira com semântica *acquire* (normalmente associada a um *read*) impõe que o efeito da instrução seja globalmente visível **antes** do efeito de todas as instruções **subsequentes**. Por outras palavras, a instrução barreira impede que as instruções que vêm **depois** possam ser movidas para **antes** da barreira. Este tipo de barreira não coloca qualquer limitação ao movimento das instruções que vêm antes da barreira. Graficamente:
    
-- Graficamente:
-
 ```
    |	  
 ===|======= *acquire barrier* 
@@ -162,9 +160,7 @@ public class NoVisibility {
 
 #### *Release Barrier*
 
-- Uma instrução barreira com semântica *release* (associada a um *write*) implica que o efeito da instrução é globalmente visível **depois** do efeito de todas as instruções que vêm antes da instrução barreira. Por outras palavras, a instrução barreira impede que as instruções que vêm antes da barreira sejam movidas para **depois** da barreira. Este tipo de barreira não coloca qualquer limitação ao movimento das instruções que vêm depois da barreira.
-
-- Graficamente:
+- Uma instrução barreira com semântica *release* (normalmente associada a um *write*) impõe que o efeito da instrução seja globalmente visível **depois** do efeito de todas as instruções que vêm **antes** da instrução barreira. Por outras palavras, a instrução barreira impede que as instruções que vêm **antes** da barreira sejam movidas para **depois** da barreira. Este tipo de barreira não coloca qualquer limitação ao movimento das instruções que vêm depois da barreira. Graficamente:
 
 ```
    |
@@ -176,9 +172,7 @@ public class NoVisibility {
 
 #### *Release Barrier*
 
-- Combina a semântica *acquire* seguida da semântica *release* (*read-modify-write* ou instrução *mfence*). Isto é, o efeito da instrução é globalmente vísivel **depois** do efeito de todas as instruções que vêm **antes** da barreira e **antes** do efeito de todas as instruções que vêm **depois**. Salienta-se que a sequência de uma instrução com semântica *realease* seguida de uma instrução com semântica *aqcuire* não forma uma *full-fence*, porque as respectivas semânticas não impedem que as instruções barreira sejam reordenadas entre si. No .NET uma escrita *volatile* (*release*) pode ser reordenada com uma leitura *volatile* (*acquire*) que venha a seguir, o que, como veremos adiante, não acontece em *Java*.   
-
-- Graficamente:
+- Combina a semântica *acquire* seguida da semântica *release* (associada às instruções atómicas *read-modify-write* e à instrução *mfence*). Isto é, o efeito da instrução barreira é globalmente vísivel **depois** do efeito de todas as instruções que vêm **antes** da barreira e **antes** do efeito de todas as instruções que vêm **depois**. Salienta-se que a sequência de uma instrução com semântica *realease* seguida de uma instrução com semântica *aqcuire* não forma uma *full-fence*, porque as respectivas semânticas não impedem que as instruções barreira sejam reordenadas entre si. No .NET uma escrita *volatile* (*release*) pode ser reordenada com uma leitura *volatile* (*acquire*) que venha a seguir, o que, como veremos adiante, não acontece em *Java*. Graficamente:
 
 ```
    |	  
@@ -187,5 +181,4 @@ public class NoVisibility {
        ^
        |
 ```
-
 ____
