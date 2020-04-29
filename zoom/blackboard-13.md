@@ -128,7 +128,7 @@ public class PossibleReordering {
 - Se as instruções realizadas pela *thread* `one` forem reordenadas temos uma sequência que conduz à impressão de (x: 0, y: 0).
 
 ```
-				   +----------+          reorder           +-------+   
+                   +----------+          reorder           +-------+   
 Thread one:    --->| x = b(0) |--------------------------->| a = 1 |
                    +----------+                            +-------+
 
