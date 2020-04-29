@@ -422,5 +422,5 @@ public class UnsafeLazyInitialization {
 
 - O construtor de `Resource` altera os campos da instância de `Resource` acabada de alocar, alterando os valores por omissão (escritos pelo construtor de `Object`) para os seus valores iniciais. Uma vez que nenhuma das _threads_ usa sincronização, _thread_ B pode possivelmente ver as acções da _thread_ A por uma ordem diferente daquela que a _thread_ A as executou. Assim, mesmo que a _thread_ A tenha inicializado o `Resource` antes de afectar `resource` para a referenciar, a _thread_ B pode ver a escrita em `resource` ocorrer **antes** das escritas dos campos de `Resource` realizadas no construtor. Assim, a _thread_ B pode ver um `Resource` <ins>parcialmente construído</ins>.
 
-- Com a excepção dos **objectos imutáveis**, não é seguro usar um objecto iniciado por outra _thread_ a menos que a publicação _happens-before_ da _thread_ consumidor utilizar o objecto.
+- Com a excepção dos **objectos imutáveis**, não é seguro usar um objecto iniciado por outra _thread_ a menos que a publicação _happens-before_ da _thread_ consumidora utilizar o objecto.
 
