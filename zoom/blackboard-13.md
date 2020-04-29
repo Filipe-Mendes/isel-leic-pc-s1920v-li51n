@@ -342,34 +342,34 @@ class ThreadInterruptionRuleDemo {
 |  lock M   |
 +-----------+
       |
-	  v
+      v
 +-----------+
 |    x = 1  |
 +-----------+
       |
-	  v
+      v
 +-----------+    Everything before
 |  unlock M |    unlock on M...                                   Thread B
 +-----------+    ------------------------------------------>    +-----------+
-      |                              ... is visible to          |  lock M   |
-	  v                              everything after           +-----------+
-                                     the lock on M                    |
-									                                  V
+      |                                 ... is visible to       |  lock M   |
+      v                                 everything after        +-----------+
+                                        the lock on M                 |
+                                                                      V
                                                                 +-----------+
-																|   i = x(1)|
-																+-----------+
-																      |
-																	  V
-															    +-----------+
-																|  unlock M |
-																+-----------+
-																      |
-																	  V
-															    +-----------+
-																|  j = y (2)|
-																+-----------+
-																      |
-																	  V
+                                                                |  i = x(1) |
+                                                                +-----------+
+                                                                      |
+                                                                      V
+                                                                +-----------+
+                                                                |  unlock M |
+                                                                +-----------+
+                                                                      |
+                                                                      V
+                                                                +-----------+
+                                                                |  j = y (2)|
+                                                                +-----------+
+                                                                      |
+                                                                      V
 ```
 
 
