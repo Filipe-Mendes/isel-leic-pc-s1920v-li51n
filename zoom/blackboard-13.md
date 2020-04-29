@@ -79,7 +79,7 @@ ____
 
 - As barrieras de memória interpostas com os blocos `synchronized` visam garantir que as instruções que constituem a secção crítica não pode ser movidas para fora do bloco `synchronized`. Isto é, a aquisição do _lock_ interpõe uma barreira _acquire_ e a libertação do _lock_ interpõe um barreira _release_. As instruções que vêm antes de depois do bloco `synchronized` podem ser movidas para dentro do bloco, se isso contribuir para alguma otimização. Graficamente:
 
-```Java				
+```				
                              |
 synchronized(monitor) {  ====|= acquire barrier
                           ^  V
