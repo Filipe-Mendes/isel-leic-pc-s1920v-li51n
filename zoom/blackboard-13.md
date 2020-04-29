@@ -424,3 +424,5 @@ public class UnsafeLazyInitialization {
 
 - Com a excepção dos **objectos imutáveis**, não é seguro usar um objecto iniciado por outra _thread_ a menos que a publicação _happens-before_ da _thread_ consumidora utilizar o objecto.
 
+____
+
