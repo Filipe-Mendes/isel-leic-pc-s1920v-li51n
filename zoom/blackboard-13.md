@@ -12,7 +12,7 @@ ____
 	aVariable = 3;
 ```
 
-- Um modelo de memória responde à questão "Sobre que condições uma *thread* que leia a variável vê o valor 3?".
+- Um modelo de memória responde à pergunta: "Sobre que condições uma *thread* que leia a variável vê o valor 3?".
 
 - Isto parece uma pergunta idiota, mas na ausência de sincronização, existem razões para para que uma *thread* não imediatamente - ou mesmo chegar a ver - os resultados de uma operação realizada por outra *thread*. Existem várias razões para isto poder acontecer:
 
@@ -75,17 +75,20 @@ ____
        |
 ```
 
+### _Barries_ Inerentes aos blocos _synchronized_
 
-```Java
-							
-							|
-synchronized(monitor) {	====|= acquire barrier
-						 ^  V
-						 |
-	... critical section
-	|
-	V
-	   ^
+- As barrieras de memória interpostas com os blocos `synchronized` visam garantir que as instruções que constituem a secção crítica não pode ser movidas para fora do bloco `synchronized`. Isto é, a aquisição do _lock_ interpõe uma barreira _acquire_ e a libertação do _lock_ interpõe um barreira _release_. As instruções que vêm antes de depois do bloco `synchronized` podem ser movidas para dentro do bloco, se isso contribuir para alguma otimização. Graficamente:
+
+```Java				
+                             |
+synchronized(monitor) {  ====|= acquire barrier
+                          ^  V
+                          |
+	critical section;
+	
+    |
+    |
+    V  ^
 } =====|== release barrier
        |
 
