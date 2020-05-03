@@ -38,15 +38,15 @@ class AcquireResult {}
 ///***
  public class GenericSynchronizerKernelStylePseudoCode {
     // lock used to synchronize access to mutable shared state
-    private Lock _lock = new Lock();
+	private Lock _lock = new Lock();
     
-    // queue where block threads are (also protected by "_lock") needed to
-    // implement control synchronization inherent to acquire/release semantics.
+	// queue where block threads are (also protected by "_lock") needed to
+	// implement control synchronization inherent to acquire/release semantics.
+	
+	private WaitQueue wqueue = new WaitQueue();
 
-    private WaitQueue wqueue = new WaitQueue();
-
-    // the instances of this type describe an acquire request, namely
-    // their arguments (if any), result (if any) and status (not done/done)
+	// the instances of this type describe an acquire request, namely
+	// their arguments (if any), result (if any) and status (not done/done)
 	private static class Request {
 		AcquireArgs acquireArgs;		// acquire arguments
 		AcquireResult acquireResult;	// acquire result
@@ -85,42 +85,47 @@ class AcquireResult {}
 	
 	// acquire operation
 	public AcquireResult acquire(AcquireArgs acquireArgs) {
-        _lock.acquire();
-        try {
-		    if (reqQueue.size() == 0 && canAcquire(acquireArgs))
-			    return acquireSideEffect(acquireArgs);
-		    Request request = new Request(acquireArgs);
-		    reqQueue.addLast(request);	// enqueue "request" at the end of the request queue
-		    do {
-			    enqueue current thread on the "waitQueue" sensible to posterior wakeups done by "_lock" owners;
-			    int depth = _lock.releaseAll();
-			    block current thread until it is waked up by a releaser threads;
-			    _lock.reAcquire(depth);
-	    	} while (!request.done);
-            // the request acquire operation completed successfully
-		    return request.acquireResult;
-        } finally {
-            _lock.release();
-        }
-    }
+		_lock.acquire();
+		try {
+			if (reqQueue.size() == 0 && canAcquire(acquireArgs))
+				return acquireSideEffect(acquireArgs);
+			
+			// create and enqueue a "request" object
+			Request request = new Request(acquireArgs);
+		    reqQueue.addLast(request);
+			
+			// loop until the request is fulfilled 
+			do {
+				enqueue current thread on the "waitQueue" sensible to posterior wakeups done by "_lock" owners;
+				int depth = _lock.releaseAll();
+				block current thread until it is waked up by a releaser threads;
+				_lock.reAcquire(depth);
+			} while (!request.done);
+            
+			// the request was fulfilled, return result
+			return request.acquireResult;
+		} finally {
+			_lock.release();
+		}
+	}
     
-    // generic release operation
+	// generic release operation
 	public void release(ReleaseArgs releaseArgs) {
-        _lock.acquire();
-        try {
-		    updateStateOnRelease(releaseArgs);
-		    while (reqQueue.size() > 0) {
-			    Request request = reqQueue.peek();
-			    if (!canAcquire(request.acquireArgs))
-				    break;
-			    reqQueue.removeFirst();
-			    request.acquireResult = acquireSideEffect(request.acquireArgs);
-			    request.done = true;
-		    }
-            wake up at least all blocked threads whose acquires have been met by this release
-        } finally {
-            _lock.release();
-        }
+		_lock.acquire();
+		try {
+			updateStateOnRelease(releaseArgs);
+			while (reqQueue.size() > 0) {
+				Request request = reqQueue.peek();
+				if (!canAcquire(request.acquireArgs))
+					break;
+				reqQueue.removeFirst();
+				request.acquireResult = acquireSideEffect(request.acquireArgs);
+				request.done = true;
+			}
+			wake up at least all blocked threads whose acquires have been met by this release;
+		} finally {
+			_lock.release();
+		}
 	}
 }
 //**/
@@ -138,46 +143,47 @@ class AcquireResult {}
 
  ///***
 class GenericSynchronizerKernelStyleImplicitMonitor {
-    // implicit Java monitor that synchronizes access to the mutable shared state
-    // and supports also the control synchronization on its condition variable.
-    private final Object monitor = new Object();
-
-    // the instances of this type describe an acquire request, namely
-    // their arguments (if any), result (if any) and status (not done/done)
-    private static class Request {
-        final AcquireArgs acquireArgs;  // acquire arguments
-        AcquireResult acquireResult;    // acquire result
-        boolean done;                   // true when the acquire is completed
-
-        Request(AcquireArgs args) { acquireArgs = args; }
-    }
+	// implicit Java monitor that synchronizes access to the mutable shared state
+	// and supports also the control synchronization on its condition variable.
+	private final Object monitor = new Object();
+	
+	// the instances of this type describe an acquire request, namely
+	// their arguments (if any), result (if any) and status (not done/done)
+	private static class Request {
+		final AcquireArgs acquireArgs;  // acquire arguments
+		AcquireResult acquireResult;    // acquire result
+		boolean done;                   // true when the acquire is completed
+		
+		Request(AcquireArgs args) { acquireArgs = args; }
+	}
     
-    // queue of pending acquire requests
-    private final LinkedList<Request> reqQueue = new LinkedList<Request>();
+	// queue of pending acquire requests
+	private final LinkedList<Request> reqQueue = new LinkedList<Request>();
     
 	// synchonization state
-    private SynchState syncState;
+	private SynchState syncState;
+	
+	// initialize
+	public GenericSynchronizerKernelStyleImplicitMonitor(InitializeArgs initiallArgs) {
+		initialize "syncState" according to information specified in "initialArgs";
+	}
+	
+	// returns true if the synchronization state allows the acquire on behalf of the
+	// thread that is at the head of the queue or the current thread if the queue is empty.
+	private boolean canAcquire(AcquireArgs acquireArgs) {
+		returns true if "syncState" allows an immediate acquire accordng to "acquireArgs";
+	}
 
-    public GenericSynchronizerKernelStyleImplicitMonitor(InitializeArgs initiallArgs) {
-        initialize "syncState" according to information specified in "initialArgs";
-    }
-
-    // returns true if the synchronization state allows the acquire on behalf of the
-    // thread that is at the head of the queue or the current thread if the queue is empty.
-    private boolean canAcquire(AcquireArgs acquireArgs) {
-        returns true if "syncState" allows an immediate acquire accordng to "acquireArgs";
-    }
-
-    // returns true if the state of synchronization allows the acquire on behalf of
-    // the thread that is at the head of the queue.
-    private boolean currentSynchStateAllowsAquire() {
-        returns true if the current synchronization state allow(s) acquire(s);
-    }
-
-    // executes the processing associated with a successful acquire and
-    // returns the proper acquire result (if any)
-    private AcquireResult acquireSideEffect(AcquireArgs acquireArgs) {
-        update "syncState" according to "acquireArgs" after a successful acquire;
+	// returns true if the state of synchronization allows the acquire on behalf of
+	// the thread that is at the head of the queue.
+	private boolean currentSynchStateAllowsAquire() {
+		returns true if the current synchronization state allow(s) acquire(s);
+	}
+	
+	// executes the processing associated with a successful acquire and
+	// returns the proper acquire result (if any)
+	private AcquireResult acquireSideEffect(AcquireArgs acquireArgs) {
+		update "syncState" according to "acquireArgs" after a successful acquire;
         return "the-proper-acquire-result";
     }
 
