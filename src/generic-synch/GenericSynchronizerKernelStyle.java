@@ -192,15 +192,15 @@ class GenericSynchronizerKernelStyleImplicitMonitor {
 
 	// generic acquire operation; returns null when it times out
     public AcquireResult acquire(AcquireArgs acquireArgs, long millisTimeout) throws InterruptedException {
-        synchronized(monitor) {
-            // if the current thread was previously interrupted, throw the appropriate exception.
-			//
-			// this anticipates the launch of the interrupt exception that would otherwise be thrown
-			// as soon as the current thread invoked a "managed wait" (e.g., invoked Object.wait to
-			// block itself in the monitor condition variable).
-	        if (Thread.interrupted())
-                throw new InterruptedException();
+        // if the current thread was previously interrupted, throw the appropriate exception.
+		//
+		// this anticipates the launch of the interrupt exception that would otherwise be thrown
+		// as soon as the current thread invoked a "managed wait" (e.g., invoked Object.wait to
+		// block itself in the monitor condition variable).
+        if (Thread.interrupted())
+            throw new InterruptedException();
 
+        synchronized(monitor) {
 			// if the request queue is empty and the current synchronization state allows
 			// an immediate acquire, do the acquire side effect and return the proper result.
         	if (reqQueue.size() == 0 && canAcquire(acquireArgs))
@@ -366,11 +366,12 @@ class GenericSynchronizerKernelStyleExplicitMonitorSpecificNotifications {
 
     // generic acquire operation; returns null when it times out
     public AcquireResult acquire(AcquireArgs acquireArgs, long millisTimeout) throws InterruptedException {
+        // if the was previously interrupted, throw the appropriate exception
+        if (Thread.interrupted())
+            throw new InterruptedException();
+
         lock.lock();
         try {
-            // if the was previously interrupted, throw the appropriate exception
-            if (Thread.interrupted())
-                throw new InterruptedException();
 
             if (reqQueue.size() == 0 && canAcquire(acquireArgs))
                 return acquireSideEffect(acquireArgs);
@@ -502,10 +503,11 @@ class SemaphoreKernelStyleImplicitMonitor {
 
     // acquires the specified number of permits; return false when it times out
     public boolean acquire(int acquires, long millisTimeout)  throws InterruptedException {
+        // if the was previously interrupted, throw the appropriate exception
+        if (Thread.interrupted())
+            throw new InterruptedException();
+
         synchronized(monitor) {
-            // if the was previously interrupted, throw the appropriate exception
-            if (Thread.interrupted())
-                throw new InterruptedException();
 
 			// if the queue is empty and there are sufficient permits, decrement the
 			// number of available permits, and return success
@@ -661,12 +663,12 @@ class SemaphoreKernelStyleExplicitMonitorSpecificNotifications {
 
     // acquires the specified number of permits; return false when it times out
     public boolean acquire(int acquires, long millisTimeout) throws InterruptedException {
+        // if the was previously interrupted, throw the appropriate exception
+        if (Thread.interrupted())
+            throw new InterruptedException();
+
         lock.lock();
         try {
-            // if the was previously interrupted, throw the appropriate exception
-            if (Thread.interrupted())
-                throw new InterruptedException();
-        
             if (reqQueue.size() == 0 && canAcquire(acquires)) {
                 acquireSideEffect(acquires);
                 return true;
@@ -787,11 +789,11 @@ class MessageQueueKernelStyleImplicitMonitor<T> {
 
     // receive the next message from the queue; returns null when it times out
     public T receive(long millisTimeout) throws InterruptedException {
-        synchronized(monitor) {
-            // if the was previously interrupted, throw the appropriate exception
-            if (Thread.interrupted())
-                throw new InterruptedException();
-            
+        // if the was previously interrupted, throw the appropriate exception
+        if (Thread.interrupted())
+            throw new InterruptedException();
+
+        synchronized(monitor) {            
             if (reqQueue.size() == 0 && canReceive())
                 return receiveSideEffect();
             Request request = new Request();
@@ -906,15 +908,15 @@ class MessageQueueKernelStyleExplicitMonitorSpecificNotification<T> {
 
     // receive the next message from the queue; returns null when it times out
     public T receive(long millisTimeout) throws InterruptedException {
+        // if the was previously interrupted, throw the appropriate exception
+        if (Thread.interrupted())
+            throw new InterruptedException();
+
         lock.lock();
         try {
-            // if the was previously interrupted, throw the appropriate exception
-            if (Thread.interrupted())
-                throw new InterruptedException();
-
-                if (reqQueue.size() == 0 && canReceive())
-                return receiveSideEffect();
-            Request request = new Request(lock.newCondition());
+			if (reqQueue.size() == 0 && canReceive())
+				return receiveSideEffect();
+			Request request = new Request(lock.newCondition());
             reqQueue.addLast(request); // enqueue the "request" at the end of request queue
             boolean isTimed = millisTimeout > 0;
             long nanosTimeout = isTimed ? TimeUnit.MILLISECONDS.toNanos(millisTimeout) : 0L;
