@@ -32,7 +32,7 @@ ____
 
 - A solução que permite implementar toda e qualquer semântica de sincronização segue um padrão que vamos designar por **estilo kernel** (nas folhas da disciplina, este estilo foi designado por **delegação de execução**).
 
-- A ideia que está por detrás do "estilo *kernel*" é simples: <ins>realizar atomicamente - pelas *releases threads* - o processamento da operação *release* assim como a conclusão do processamento de todas as operações *acquire* pendentes que são viabilizadas pela respectiva operação *release*</ins>.
+- A ideia que está por detrás do "estilo *kernel*" é simples: <ins>realizar atomicamente - pelas *releaser threads* - o processamento da operação *release* assim como a conclusão do processamento de todas as operações *acquire* pendentes que são viabilizadas pela respectiva operação *release*</ins>.
 
 - A título de curiosidade, o "estilo *kernel*" **resgata** a atomicidade subjancente à semântica da sinalização proposta por *Brinch Hansen* e *Hoare*. Recorda-se que esta semântica garantia atomicidade entre o código realizado na operação *release* antes da sinalização de uma *thread* bloqueada no *acquire*  com o código realizado na operação *acquire* após o retorno da chamada a *condition.wait*.
 
@@ -74,76 +74,78 @@ ____
  */
 
 class GenericSynchronizerKernelStyleImplicitMonitor {
-    // implicit Java monitor that synchronizes access to the mutable shared state
-    // and supports also the control synchronization on its condition variable.
-    private final Object monitor = new Object();
+	// implicit Java monitor that synchronizes access to the mutable shared state
+	// and supports also the control synchronization on its condition variable.
+	private final Object monitor = new Object();
 
-    // the instances of this type describe an acquire request, namely
-    // their arguments (if any), result (if any) and status (not done/done)
-    private static class Request {
-        final AcquireArgs acquireArgs;  // acquire arguments
-        AcquireResult acquireResult;    // acquire result
-        boolean done;                   // true when the acquire is completed
-
-        Request(AcquireArgs args) { acquireArgs = args; }
-    }
+	// the instances of this type describe an acquire request, namely
+	// their arguments (if any), result (if any) and status (not done/done)
+	private static class Request {
+		final AcquireArgs acquireArgs;  // acquire arguments
+		AcquireResult acquireResult;    // acquire result
+		boolean done;                   // true when the acquire is completed
+		
+		Request(AcquireArgs args) { acquireArgs = args; }
+	}
     
-    // queue of pending acquire requests
-    private final LinkedList<Request> reqQueue = new LinkedList<Request>();
-    
-	// synchonization state
-    private SynchState syncState;
-
-    public GenericSynchronizerKernelStyleImplicitMonitor(InitializeArgs initiallArgs) {
-        initialize "syncState" according to information specified in "initialArgs";
-    }
-
-    // returns true if the synchronization state allows the acquire on behalf of the
-    // thread that is at the head of the queue or the current thread if the queue is empty.
-    private boolean canAcquire(AcquireArgs acquireArgs) {
-        returns true if "syncState" allows an immediate acquire accordng to "acquireArgs";
-    }
-
-    // returns true if the state of synchronization allows the acquire on behalf of
+	// queue of pending acquire requests
+	private final LinkedList<Request> reqQueue = new LinkedList<Request>();
+	
+	// synchronization state
+	private SynchState syncState;
+	
+	// initialize the synchronizer
+	public GenericSynchronizerKernelStyleImplicitMonitor(InitializeArgs initiallArgs) {
+		initialize "syncState" according to information specified in "initialArgs";
+	}
+	
+	// returns true if the synchronization state allows the acquire on behalf of the
+   	// thread that is at the head of the queue or the current thread if the queue is empty.
+   	private boolean canAcquire(AcquireArgs acquireArgs) {
+		returns true if "syncState" allows an immediate acquire accordng to "acquireArgs";
+	}
+	
+	// returns true if the state of synchronization allows the acquire on behalf of
     // the thread that is at the head of the queue.
-    private boolean currentSynchStateAllowsAquire() {
-        returns true if the current synchronization state allow(s) acquire(s);
-    }
+	private boolean currentSynchStateAllowsAquire() {
+		returns true if the current synchronization state allow(s) acquire(s);
+	}
 
-    // executes the processing associated with a successful acquire and
-    // returns the proper acquire result (if any)
-    private AcquireResult acquireSideEffect(AcquireArgs acquireArgs) {
+	// executes the processing associated with a successful acquire and
+	// returns the proper acquire result (if any)
+	private AcquireResult acquireSideEffect(AcquireArgs acquireArgs) {
         update "syncState" according to "acquireArgs" after a successful acquire;
         return "the-proper-acquire-result";
     }
 
     // update synchronization state due to a release operation according to "releaseArgs".
     private void updateStateOnRelease(ReleaseArgs releaseArgs) {
-        update "syncState" according to "releaseArgs";
+      update "syncState" according to "releaseArgs";
 	}
 	
 	/**
 	 * Methods that are independent of the synchronizer semantics
 	 */
 
-	// generic acquire operation; returns null when it times out
-    public AcquireResult acquire(AcquireArgs acquireArgs, long millisTimeout) throws InterruptedException {
-        synchronized(monitor) {
-			/**
-			 * if the current thread was previously interrupted, throw the appropriate exception.
-			 *
-			 * this anticipates the launch of the interrupt exception that would otherwise be thrown
-			 * as soon as the current thread invoked a "managed wait" (e.g., invoked Object.wait to
-			 * block itself in the monitor condition variable).
-			 */
-			if (Thread.interrupted())
-				throw new InterruptedException();
+	 // generic acquire operation; returns null when it times out
+	 public AcquireResult acquire(AcquireArgs acquireArgs, long millisTimeout) throws InterruptedException {
+		/**
+		 * if the current thread was previously interrupted, throw the appropriate exception.
+		 *
+		 * this antecipates the launch of the InterruptedException that would otherwise be thrown
+		 * as soon as the current thread invoked a "managed wait" (e.g., invoked Object.wait to
+		 * block itself in the monitor condition variable).
+		 */
+		if (Thread.interrupted())
+		 	throw new InterruptedException();
 			
+		synchronized(monitor) {
+			 
 			// if the request queue is empty and the current synchronization state allows
 			// an immediate acquire, do the acquire side effect and return the proper result.
-        	if (reqQueue.size() == 0 && canAcquire(acquireArgs))
-				return acquireSideEffect(acquireArgs);
-			
+			if (reqQueue.size() == 0 && canAcquire(acquireArgs))
+			 	return acquireSideEffect(acquireArgs);
+				
 			// the current thread must wait on the monitor condition variable;
 			// create a Request object and enqueue it at the end of request queue
 			Request request = new Request(acquireArgs);

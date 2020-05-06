@@ -47,7 +47,7 @@ public static class ThreadEx {
 
 - Unifica todos os aspectos envolvidos na implementação de sincronizadores: <ins>os dados partilhados</ins>, <ins>o código que acede a esses dados</ins>, <ins>o acesso aos dados partilhados em exclusão mútua</ins> e <ins>a possibilidade de bloquear e desbloquear *threads* em coordenação com a exclusão mútua</ins>.
 
-- Este mecanismo foi proposto inicialmemte como construção de uma linguagem de alto nível (Concurrent Pascal) semelhante à definição de classe nas linguagens orientadas por objectos.
+- Este mecanismo foi proposto inicialmemte como construção de uma linguagem de alto nível (_Concurrent Pascal_) semelhante à definição de classe nas linguagens orientadas por objectos.
 
 - Foram considerados dois tipos de procedimentos/métodos: os procedimentos de entrada (públicos),que podem ser invocados de fora do monitor e os procedimentos internos (privados) que apenas podem ser invocados pelos procedimentos de entrada.
 

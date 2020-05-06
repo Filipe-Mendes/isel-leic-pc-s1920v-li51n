@@ -11,7 +11,7 @@ ____
 
 - Foram considerados dois tipos de procedimentos/métodos: os procedimentos de entrada (públicos),que podem ser invocados de fora do monitor e os procedimentos internos (privados) que apenas podem ser invocados pelos procedimentos de entrada.
 
-- O monitor garante, que num determinado momento, <ins>quanto muito uma *thread* está *dentro* do monitor<ins>. Quando uma *thread* está dentro do monitor é atrasada a execução de qualquer outra *thread* que invoque um dos seus procedimentos de entrada. 
+- O monitor garante, que num determinado momento, <ins>quanto muito uma *thread* está *dentro* do monitor</ins>. Quando uma *thread* está dentro do monitor é atrasada a execução de qualquer outra *thread* que invoque um dos seus procedimentos de entrada. 
 
 - Para bloquear as *threads* dentro do monitor *Brinch Hansen* e *Hoare* propuseram o conceito de variável condição (que, de facto, nem são variáveis nem condições, são antes filas de espera onde são blouqeadas as *threads*). A ideia básica é a seguinte: quando as *threads* não têm condições para realizar a operação *acquire* que pretendem bloqueiam-se nas variáveis condição; quando outras *threads* a executar dentro do monitor alteram o estado partilhado sinalizam as *threads* bloqueadas nas variáveis condição quando isso for adequado.
 
@@ -25,13 +25,13 @@ ____
 
 - Foi implementada na linguagem Mesa que suportava concorrência.
 
-- **Esta semântica de sinalização é a que é implememtada por todos os *runtimes* actuais que suportam o conceito de monitor**
+- **Esta semântica de sinalização é a única implememtada em todos os *runtimes* actuais que suportam o conceito de monitor**
 
 - Considerando que a semântica de sinalização proposta por *Brinch Hansen* e *Hoare* era demasiado rígida (entre outros aspectos, não permitia a interrupção ou aborto das *threads* bloqueadas dentro dos monitores, propuseram uma alternativa à semântica da sinalização.
 
 - Quando uma *thread* estabelece uma condição que é esperada por outra(s) *thread(s)*, eventualmente bloqueada, notifica a respectiva variável condição. Assim a operação *notify* é entendida como um aviso ou conselho à *thread* bloqueada e tem como consequência que esta reentre no monitor algures no futuro.
 
-- O *lock* do monitor tem que ser readquirido quando uma *thread* bloqueada pela operação *wait* reentra no monitor. **Não existe garantia de que qualquer outra *thread* não entre no monitor antes de uma *thread* notificada reentrar (fenómeno que se designa por *barging*). Além disso, após uma *thread* notificada reentrar no monitor não existe nenhuma garantia que o estado do monitor seja aquele que existia no momento da notificação (garantia dada pela semântica de *Brinch Hansen* e *Hoare*). É, por isso, necessário que seja reavaliado o predicado que determina o bloqueio.
+- O *lock* do monitor tem que ser readquirido quando uma *thread* bloqueada pela operação *wait* reentra no monitor. **Não existe garantia de que qualquer outra *thread* não entre no monitor antes de uma *thread* notificada reentrar** (fenómeno que se designa por *barging*). Além disso, após uma *thread* notificada reentrar no monitor não existe nenhuma garantia que o estado do monitor seja aquele que existia no momento da notificação (garantia dada pela semântica de *Brinch Hansen* e *Hoare*). É, por isso, necessário que seja reavaliado o predicado que determina o bloqueio.
 
 - Esta semântica tem como primeira vantagem não serem necessárias comutações adicionais no processo de notificação.
 
@@ -129,7 +129,7 @@ public class SingleResourceEx {
    		try { 	// this block is the critical section executed inside the monitor
 			while(busy)
 				nonBusy.await();	// block current thread on the onBusy conditon variable,
-					 				// obviously leaving the monitor
+									// obviously leaving the monitor
 			busy = true;	// acquire the resource
 		} finally {
 			monitor.unlock();	// release the lock, that is, leave the monitor
