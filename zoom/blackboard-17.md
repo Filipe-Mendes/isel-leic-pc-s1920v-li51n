@@ -27,19 +27,22 @@ ____
 
 ```Java	
 import java.util.function.Supplier;
+import java.util.function.Consumer;
 import java.util.concurrent.atomic.AtomicReference;
 	
 public final class LazyInit<E> {
 	private final Supplier<E> supplier;
+	private final Consumer<E> cleanup;
 	 
 	private AtomicReference<E> resource;
 	
-	public LazyInit(Supplier<E> supplier, Consumer<E>) {
+	public LazyInit(Supplier<E> supplier, Consumer<E> cleanup) {
 		this.supplier = supplier;
+		this.cleanup = cleanup;
 		resource = new AtomicReference<>(null);
 	}
 	
-	// returns the instance of E, creating it on first call
+	// returns the instance of E, creating it at first time
 	public E getInstance() {
 		// step 1
 		E observedResource = resource.get();
@@ -49,7 +52,7 @@ public final class LazyInit<E> {
 			// outcome 2.iii
 			return observedResource;
 		
-		// outcome 2.i - speculatively create the resource 
+		// outcome 2.i
 		E updatedResource = supplier.get();
 		
 		// step 3.
@@ -57,13 +60,15 @@ public final class LazyInit<E> {
 			// outcome 3.i
 			return updatedResource;
 		
-		// outcome 3.iii: eventually do some cleanup, and return the resource
+		// outcome 3.iii: do cleanup, if sepecified, and return the resource
 		// created by some other thread
 		
-		// cleanup 
+		if (cleanup != null)
+			cleanup.accept(updatedResource);
+		
 		return resource.get();
 	}
-
+}
 ```
 
 - Este é um caso, pouco comum, onde a falha do CAS não implica fazer uma nova tentativa, pois indica que foi atingido um estado final inalterável; isto é, a instância do recurso subjacente foi criada por uma das _threads_ que o solicitaram e, a partir disso, todas as outras _threads_ vão obter essa mesma instância.
