@@ -25,7 +25,7 @@ ____
 
 - os algoritmos _nonblocking_ são consideravelmente mais complexos que os seus equivalentes baseados em _lock_. Um aspecto central na criação de algoritmos _nonblocking_ é descobrir como se pode limitar o âmbito das actualizações atómicas a uma única variável, enquanto ainda se mantém a consistência dos dados. Em colecções basedas em estruturas ligadas como as filas, às vezes é possível expressar transformações de estado como alterações em _links_ individuais e usar `AtomicReference` para representar cada _link_ que deva ser actualizado atomicamente.  
 
-- A maioria dos algoritmos _nonblocking_ baseados em CAS, onde o estado partilhado mutável seja representado por uma única variável atómica, têm os os passos que se descrevem a seguir.
+- A maioria dos algoritmos _nonblocking_ baseados em CAS, onde o estado partilhado mutável seja representado por uma única variável atómica, têm os três passos que se descrevem a seguir.
 
 1. É obtida uma cópia do estado partilhado mutável (`observedValue`);
 
