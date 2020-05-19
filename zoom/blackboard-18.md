@@ -273,9 +273,9 @@ public class MichaelScottQueue<E> {
 3. Invocar CAS sobre a variável atómica sobre a qual é disputada a actualização atómica (neste caso, `observedTail.next` que vai ser afectado com `newNode`) se o seu valor ainda for aquele obtido no passo 1 e validado no passo 2 (`null`). Pode ocorrer uma de duas  situações: (i) o CAS tem sucesso, sendo a seguir realizadas as restantes actualizações atómicas (aqui `tail.compareAndSet(observedTail, newNode)`), tendo em consideração que as mesmas pode falhar devido à possibilidade de **ajuda** por parte de outras _threads; (ii) o CAS falha devido a colisão com outra _thread_ (situação comum), então repetir a partir de 1, podendo eventualmente esperar algum tempo (_spin wait_ ou _backoff_).
 
 
-### _Atomic Field Updates_
+### _Atomic Field Updaters_
 
-- A listagem seguinte ilustra o algoritmo usado pelo `TreiberStack`, mas a implementação é um pouco diferente da apresentada anteriormente. Em vez de representar `top` com uma referência atómica, usa-se uma simples referência _volatile_ e fazem-se as actualizações atómicas usando a funcionalidade da classe `AtomicReferenceFiedUpdater`, cuja implementação se basei em reflexão.  
+- A listagem seguinte ilustra uma parte do algoritmo usado pelo `TreiberStack`, mas a implementação é um pouco diferente da apresentada anteriormente. Em vez de representar `top` com uma referência atómica, usa-se uma simples referência _volatile_ e fazem-se as actualizações atómicas usando a funcionalidade da classe `AtomicReferenceFiedUpdater`, cuja implementação se baseia em reflexão.  
  
  
  ```Java
@@ -293,7 +293,7 @@ public class MichaelScottQueue<E> {
  	// the stack top
  	private volatile Node<E> top = null;
 	
- 	// the atomic field updater that allows execute atomic operation on the "top" field
+ 	// the atomic field updater that allows execute atomic operation on the "top" volatile field
  	private static AtomicReferenceFieldUpdater<TreiberStack, Node> topUpdater =
  		AtomicReferenceFieldUpdater.newUpdater(TreiberStack.class, Node.class, "top");
 	
@@ -312,33 +312,13 @@ public class MichaelScottQueue<E> {
  			// outcome 3.ii
  		}
  	}
-	
- 	// try to pop an item from the stack
- 	public E tryPop() {
- 		Node<E> observedTop;
- 		while (true) {
- 			// step 1
- 			observedTop = top;
- 			// step 2
- 			if (observedTop == null)
- 				// outcome 2.ii: the stack is empty
- 				return null;
- 			// outcome 2.i - compute the updated stack top
- 			Node<E> updatedTop = observedTop.next;
- 			// step 3.
- 			if (topUpdater.compareAndSet(this, observedTop, updatedTop))
- 				// outcome 3.i: success
- 				break;
- 			// outcome 3.ii: retry
- 		}
- 		return observedTop.item;
- 	}
+	...
  }
   ```
  
- - As classes _atomic field updater_ (disponíveis nas versões `Integer`, `Long` e `Reference`) representam uma "vista", baseada em reflexão, de um campo `volatile` existente de modo a que CAS pode ser usado em campos `volatile` existentes. As classes _updater_ não têm construtores; para criar uma destas classes, invoca-se o método de fabrico `newUpdater`, especificando a classe onde o campo _volatile_ está definido e o nome do campo, e no caso da referências a classe da referência. As classes _field updater_ não estão vinculadas a uma instância específica; podem ser usadas para actualizar o campo em apreço em qualquer instância da classe alvo.
+ - As classes _atomic field updater_ (disponíveis nas versões `Integer`, `Long` e `Reference`) representam uma "vista", baseada em reflexão, de um campo `volatile` existente de modo a que possa ser usadas operações atómicas em campos `volatile` existentes. As classes _updater_ não têm construtores; para criar uma destas classes, invoca-se o método de fabrico `newUpdater`, especificando a classe onde o campo _volatile_ está definido e o nome do campo, e no caso da referências especifica-se também a classe que define o tipo da referência. As classes _field updater_ não estão vinculadas a uma instância específica; podem ser usadas para actualizar o campo em apreço em qualquer instância da classe alvo.
  
- - As garantias de atomicidade dadas pelas classes _updater_ são mais fracas que as garantias dadas pelas classes atómicas regulares porque não é possível garantir que os campos subjacentes não possam ser modificados directamente - o método `compareAndSet` e os métodos aritméticos garantem atomicidade apenas no que diz respeito a outras _threads_ que usam métodos do _atomic field updater_.
+ - As garantias de atomicidade dadas pelas classes _updater_ são mais fracas que as garantias dadas pelas classes atómicas regulares porque não é possível garantir que os campos subjacentes não possam ser modificados directamente - o método `compareAndSet` e os métodos aritméticos garantem atomicidade apenas no que diz respeito apenas a outras _threads_ que também usem os métodos do _atomic field updater_.
  
  - Nesta versão do `TreiberStack`, as actualizações do campo `top` do _stack_ são aplicadas usadp o método `compareAndSet` de `topUpdater`. Esta abordagem um tanto tortuosa é usada inteiramente pro razões de desempenho. Não é este o caso, mas na ´MichaelScottQueue` a substituição usar no campo `next` uma referência _volatile_ em vez de uma instância de `AtomicReference` para cada nó contribui para reduzir o custo das operações de inserção. No entanto, em quase todas as situações, as varáveis atómicas comuns têm um bom desempenho - em apenas alguns casos, será conveniente usaros _atomic field updaters_.
  
@@ -352,14 +332,88 @@ public class MichaelScottQueue<E> {
 - Muitos processadores providenciam uma operação CAS _double-wide_ (CAS2 ou CASX) que pode operar num par ponteiro-inteiro, o que torna esta operação razoavelmente eficiente. A partir do _Java_ 6, `AtomicStampedReference` não utiliza CAS _double-wide_ mesmo nas plataformas que o suportam. (CAS _double-wide_ é diferente de DCAS, que opera em duas posições de memória arbitrárias; a partir de 2015, o DCAS não é suportado por nenhum processador de utilização generalizada.)
 
 
+
+### Operações Atómicas no .NET _Framework_
+
+- No .NET _framework_ as operações atómicas estão disponíveis através de métodos estáticos da classe `System.Threading.Interlocked`, nomeadamente `Add`, `CompareExchange`, `Decrement`, `Exchange` e `Increment`. As operações atómicas estão disponíveis para os tipos `Int32` e `Int64`. As operações atómicas _exchange_ e _compare-exchange_ estão disponíveis para os tipos `Int32`, `Int64`, `Single`, `Double`, `Object`, `IntPtr` e para qualquer tipo referência `T`.   
+
+- A classe `System.Threading.Interlocked` define também método estático `Read` que permite realizar leituras atómicas de `Int64` (64-bit), e dois métodos para interpor barreiras de memória com semântica _full-fence_: `MemoryBarrier` e `MemoryBarrierProcessWide`. O método `MemoryBarrier` interpõe uma barreira _full-fence_ no processador que executa a _thread_ que fez a chamada (um dos efeitos desta barreira é fazer _flush_ da _write queue_ do processador) e é normalmente implementada com a instrução atómica _exchange_. O método `MemoryBarrierProcessWide` interpõe uma barreira _full-fence_ em todos os processadores que estão a executar _threads_ do processo corrente. (Em _Winodws_ este método faz uma chamada ao à API `FlushProcessWriteBuffers` e no _Linux_ chama o _system call_ `sys_membarrier`).
+
+- Tal como acontece no _Java_, no .NET _framework_ as variáveis sobre as quais são feitas operações atómicas para garantir que os acessos normais de leitura e escrita têm semântica de _volatile read_ e _volatile write_, respectivamente.
+
+- O .NET _framework_ também define a classe `System.Threading.Volatile` que define os métodos `Read` e `Write` que realizam, respectivamente, leituras e escritas com semântica _volatile_ em variáveis/campos que não tenham sido declarados com o modificador `volatile` (por exemplo, variáveis locais a métodos que não podem ser declaradas como `volatile`). O método `Read`interpõe uma barreira _full-fence_ antes da ler o valor da variável e o método `Write` interpõe uma barreira _full-fence_ antes de escrever o novo valor na variável. A título de curiosidade, salienta-se que a escrita de uma variável como o método `Volatile.Write` tem a mesma semântica que uma escrita com semântica _volatile_ em _Java_.
+
+- A seguir apresenta a implementação da classe `TreiberStack` escrita em C#.
+
+```C#
+using System;
+using System.Threading;
+
+// Treiber stack implementation
+public class TreiberStack<E>  where E: class {
+
+	// the node used to store data items
+	private class Node<V> {
+		internal Node<V> next;
+		internal readonly V item;
+			
+		internal Node(V item) {
+			this.item = item;
+		}
+	}
+	
+	// the stack top
+	private volatile Node<E>top = null;
+	
+	// push an item onto stack
+	public void Push(E item) {
+		Node<E> updatedTop = new Node<E>(item);
+		while (true) {
+			// step 1
+			Node<E> observedTop = top;
+			// step 2.i - link the new top node to the previous top node
+			updatedTop.next = observedTop;
+			// step 3.
+			if (Interlocked.CompareExchange(ref top, updatedTop, observedTop) == observedTop)
+				// outcome 3.i: success
+				break;
+				
+			// outcome 3.ii: retry
+		}
+	}
+	
+	// try to pop an item from the stack
+	public E TryPop() {
+		Node<E> observedTop;
+		while (true) {
+			// step 1
+			observedTop = top;	// must be a volatile read
+			// step 2
+			if (observedTop == null)
+				// outcome 2.ii: the stack is empty
+				return null;
+			// outcome 2.i - compute the updated stack top
+			Node<E> updatedTop = observedTop.next;
+			// step 3.
+			if (Interlocked.CompareExchange(ref top, updatedTop, observedTop) == observedTop)
+				// outcome 3.i: success
+				break;
+				
+			// outcome 3.ii: retry
+		}
+		return observedTop.item;
+	}
+}
+
+```
 ## Resumo
 
-- Os algoritmos _nonblocking_ mantêm a _thread safety_ utilizando primitivas de concorrência de baixo nível como é o caso de _compare-and-swap_ em vez de _locks_. Essas primitivas de baixo nível são exposta em _Java_ através de classes de variáveis atómicas, as quais podem também ser usadas como "_better volatile variable_" providenciando actualizações atómicas para valores inteiros e referências para objectos.
+- Os algoritmos _nonblocking_ mantêm _thread safety_ utilizando primitivas de concorrência de baixo nível como é o caso da operação atómica _compare-and-swap_ em vez de utilizar _locks_. Essas primitivas de baixo nível são exposta em _Java_ através de classes de variáveis atómicas as quais podem também ser usadas como "_better volatile variable_" providenciando actualizações atómicas para valores inteiros e referências para objectos. No .NET _framework_ as mesmas operações atómicas estão disponíveis através da classe `System.Threading.Interlocked`. Recorda-se que existe uma diferença importante estre as escritas _volatile_ no _Java_ e no .NET; em _Java_ a escrita normal de uma variável _volatile_ fica imediatamente visível a todos os processadoes (a escrita é feita com uma instrução atómica, por exemplo, _exchange_) o que não acontece em .NET, onde as escritas _volatile_ normais podem ficar retidas no _write buffer_ do processador e não imediatamente visíveis aos outros processadores. (Como dissemos atrás, isto permite o chamado _realease/acquire hazerd_, que permite que a escrita _volatile_ de uma variável possa ser reordenada com a leitura _volatile_ de outra variável).
 
 - Os algoritmos _nonblocking_ são difíceis de conceber e implementar, mas podem oferecer melhor escalabilidade sobre condições típicas e grande resistência a falhas de _liveness_. Muitos dos avanços no desempenho concorrente de uma versão da JVM para a próxima vêm da utilização de algoritmos _nonblocking_, quer na JVM quer nas bibliotecas da plataforma.
 
  
- 
+___
  
  
  
