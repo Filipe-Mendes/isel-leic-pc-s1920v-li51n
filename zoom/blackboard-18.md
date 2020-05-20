@@ -58,12 +58,7 @@ public class SpinSemaphore {
 	}
 	
 	// try to acquire one permit immediately
-	public boolean tryAcquire() {
-		int observedPermits = permits.get();
-		if (observedPermits > 0 && permits.compareAndSet(observedPermits, observedPermits - 1))
-			return true;
-		return false;
-	}
+	public boolean tryAcquire(int acquires) { return acquire(acquires, 0L); }
 	
 	// releases the speciified number of permits, checking maximum value and overflow
 	public void release(int releases) {
@@ -124,7 +119,7 @@ public class SpinSemaphore {
 public class TreiberStack<E> {
 	// the node
 	private static class Node<V> {
-		Node<V> next;
+		Node<V> next;	// next node
 		final V item;
 			
 		Node(V item) {
@@ -140,11 +135,11 @@ public class TreiberStack<E> {
 		Node<E> updatedTop = new Node<E>(item);
 		while (true) {
 			// step 1
-			Node<E> observedTop = top.get();
+			Node<E> observedTop = top.get();	// volatile read
 			// step 2.i - link the new top node to the previous top node
 			updatedTop.next = observedTop;
 			// step 3.
-			if (top.compareAndSet(observedTop, updatedTop))
+			if (top.compareAndSet(observedTop, updatedTop))	// volatile write
 				// outcome 3.i
 				break;
 			// outcome 3.ii
@@ -156,7 +151,7 @@ public class TreiberStack<E> {
 		Node<E> observedTop;
 		while (true) {
 			// step 1
-			observedTop = top.get();
+			observedTop = top.get();	// volatile read
 			// step 2
 			if (observedTop == null)
 				// outcome 2.ii: the stack is empty
@@ -164,7 +159,7 @@ public class TreiberStack<E> {
 			// outcome 2.i - compute the updated stack top
 			Node<E> updatedTop = observedTop.next;
 			// step 3.
-			if (top.compareAndSet(observedTop, updatedTop))
+			if (top.compareAndSet(observedTop, updatedTop))	// volatile write
 				// outcome 3.i: success
 				break;
 			// outcome 3.ii: retry
