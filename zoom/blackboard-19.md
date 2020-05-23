@@ -23,23 +23,25 @@ ___
 
 - Ficará assim apenas por resolver o problema de garantir que qualquer _acquirer thread_ que se bloquei no monitor será desbloqueda, pois, na operação _acquire_, não será possível garantir a atomicidade da operação _check-then-act_ que determina a necessidade de bloqueio e o bloqueio efectivo da _acquirer thread_. Esta falta de atomicidade terá que ser de alguma forma resolvida na operação _release_, garantindo que quando há um _race_ entre uma operação _acquire_ que bloqueia a _thread_ invocante e um _release_ que deveria desbloquear essa _thread_ isso de facto acontece.
 
-- O algoritmo proposto para garantir a sincronização de controlo - bloqueio no _acquire_ e notificação no _release_ - não depende da semântica de um sincroniador concreto. Este algoritmo baseia-se em ter, para além do estado de sincronização, a variável _volatile_ `waiters` que contém o número de _threads_ bloqueadas; a visibidade desta variável é garantida pelo facto de ser declarada como `volatile`; contudo, a atomicidade será garantida pelo _lock_ do monitor, uma vez que a mesma apenas vai ser incrementada e decrementada na operação _acquire_ com a posse do _lock_ do monitor. O algoritmo para resolver o problema do _check-then-act_ não atómico é o seguinte:
+- O algoritmo proposto para garantir a sincronização de controlo - bloqueio no _acquire_ e notificação no _release_ - não depende da semântica de um sincroniador concreto. Este algoritmo baseia-se em ter, para além do estado de sincronização, a variável _volatile_ `waiters` que contém o número de _threads_ bloqueadas; a visibidade desta variável é garantida pelo facto de ser declarada como `volatile`; contudo, a atomicidade será garantida pelo _lock_ do monitor, uma vez que a mesma apenas vai ser incrementada e decrementada na operação _acquire_ com a posse do _lock_ do monitor. O algoritmo para resolver o problema da não atomicidade do _check-then-act_ é o seguinte:
+
+	- Uma _thread_ que chame a operação _acquire_ e cuja chamada a `tryAcquire` devolve `false` adquire o _lock_ do monitor;
+	
+	- Após a aquisicão do _lock_, incrementa a variável _volatile_ `waiters` para indicar que vai bloquear-se numa variável condição do monitor (as alterações da variável `waiters` - incrementar e decrementar - não necessita de usar uma instrução atómica, dado que as alterações são sempre feitas na posse do _lock_);
+	
+	- Após garantir que o incremento da variável `waiters` é visivel a todos os processadores (em _Java_ isto é garantido pela semântica da escrita `volatile`, contudo, no .NET _framework_ é necessário invocar o método `Interlocked.MemoryBarrier` para ter as mesmas garantias de visibilidade) e antes de se bloquear, a _thread_ volta a invocar o método `tryAcquire`; se este método devolver `true` a operação _acquire_ termina com sucesso; no caso contrário, a _thread_ bloqueia-se numa varíavel condição do monitor; Após ser notificada a _acquirer thread_, volta a chamar o método `tryAcquire` para determinar se pode realizar a operação _acquire_ ou se tem que se voltar a bloquear (ciclo típico das implementações ao "estilo monitor");
+	
+	- A operação _release_ começa com a actualização do estado de sincronização invocando o método `doRelease` garantindo que a actualização fica visível a todos os processadores (a visbilidade é sempre garantida se a actualização for feita com uma instrução atómica ou escrita _volatile_ em _Java_, contudo, no .NET _framework_ é necessário invocar o método `Interlocked.MemoryBarrier`); a seguir, a _releaser thread_ testa se existem _threads_ bloqueadas no monitor (isto é, se a variável `waiters` é maior do que zero) e, em caso afirmativo, adquire o _lock_ do monitor; após adquirir a posse do _lock_ do monitor, repete o teste da variável `waiters` para confirmar se existem efectivamente _threads_ bloqueadas (este teste é necessário para evitar notificações desnecessárias nas situações em que uma _acquirer thread_ não se bloqueia efectivamente após incrementar a variável `waiters`). Se houver _threads_ bloqueadas no monitor, a _releaser thread_ procede às necessárias notificações.
 	  
-	  - Uma _thread_ que chame a operação _acquire_ e cuja chamada a `tryAcquire` devolve `false` adquire o _lock_ do monitor;
-	  
-	  - Após a aquisicão do _lock_ incrementa a variável _volatile_ `waiters` para indicar que está bloqueada dentro do monitor;
-	  
-	  - Após ter a garantia de que o incremento da variável `waiters` é visivel a todos os processadores (em _Java_ isto é ganrantido pela escrita `volatile`, contudo no .NET _framework_ é necessário invocar o método `Interlocked.MemoryBarrier` para obter as mesmas garantias de visibilidade) e antes de se bloquear, a _thread_ volta a invocar o método `tryAcquire`; se este método devolver `true` a operação _acquire_ termina com sucesso; no caso contrário, a _thread_ bloqueia-se numa varíavel condição do monitor;
-	  
-	  - Na operação _release_ começa por actualizar-se o estado de sincronização invocando o método `doRelease` tendo a garantia de que essa actualização é visível a todos os processadores (em _Java_ isso será garantido por uma simples escrita _volatile_ ou por uma instrução atómica, contudo no .NET _framework_ se a actualização não for feita com uma instrução atómica é necessário invocar o método `Interlocked.MemoryBarrier` para ter as mesmas garantias de visibilidade); a seguir, a _releaser thread_ testa se a variável `waiters` é maior do que zero e, em caso afirmativo, adquire o _lock_ do monitor; já dentro do monitor, repete o teste de `waiters` para confirmar se efectivamente existem _threads_ bloqueadas (como uma _acquirer thread_ pode não se bloquear após incrementar `waiters`, sempre que isso acontece é possível que uma _releaser thread_ veja a variável `waiters` igual a zero depois de adquirir o _lock_ do monitor.
-	  
-- Este algoritmo funciona sempre qualquer que seja a forma como as acções realizadas pela _acquirer thread_ e pela _releaser thread_ sejam intercaladas, porque:
+- Este algoritmo funciona sempre qualquer que seja a forma como são intercaladas as acções realizadas pela _acquirer thread_ e pela _releaser thread_, porque:
 
 	- A _acquirer thread_ ao perceber que tem que se bloquear anuncia a todos os processadores: "vou bloquear-me!"; imediatamente a seguir pergunta: "mas é mesmo necessário bloquear-me?". Em caso de resposta negativa, isto é, `tryAcquire` devolve `true` a operação _acquire_ tem sucesso e a _thread_ não se bloqueia.
 	
 	- A _releaser thread_ começa por anunciar a todos os processadores: "eu viabilizo uma ou mais operações _acquire_!". A seguir, pergunta: "existem _threads_ bloqueadas que possam ver as suas operações _acquire_ satisfeitas por este _release_?". Em caso afirmativo, adquire a posse do _lock_ do monitor e procede às necessária(s) notificação(ões).
 
-- Em todas as combinações possiveis das acções na _acquirer thread_ e da _release thread_ não existe nenhuma possibilidade de uma _acquirer threas_ se bloquar sem que seja notificada por uma _releaser thread_ concorrente. 
+- Em todas as combinações possiveis das acções na _acquirer thread_ e da _release thread_ não existe nenhuma possibilidade de uma _acquirer threas_ se bloquear sem que seja notificada por uma _releaser thread_ concorrente.
+
+- Existe mais um aspecto importante a ter em atenção que é a necessidade de ter que ser usado o método `tryAcquire` para testar e alterar o estado de sincronização, mesmo quando no método _acquire_ uma _thread_ tem a posse do _lock_ do monitor. A razão para isto deve-se ao facto do estado de sincronização ser acedido por  _threads_ que não estão na posse do _lock_ (exactamente no método ´doRelease´ e na chamada a `tryAcquire`no início da operação _acquire_).
 
 
 ### Implementação do Semáforo
@@ -175,7 +177,7 @@ public final class Semaphore {
 
 - O estado deste sincronizador que é relevante nos _fast-paths_ é um `boolean` pelo que é trivial implementar as operações `tryAcquire` e `doReleasse` porque nem sequer se coloca o problema da atomicidade.
 
-- Esta implementação ilustar em duas situações a necessidade de invocar o método `Interlocked.Memory` para garantir de imedaito a visibilidade das escritas nas variáveis `signaled` e `waiters`.
+- Esta implementação ilustar em duas situações a necessidade de invocar o método `Interlocked.Memory` para garantir imediatamente a visibilidade a todos os processadores das escritas nas variáveis `signaled` e `waiters`.
 
 ```C#
 using System;
