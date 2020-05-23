@@ -320,19 +320,18 @@ public class MichaelScottQueue<E> {
  
 ### O Problema ABA
 
-- O problema ABA é uma anomalia que pode surgir com o uso ingénuo do _compare-and-swap_ em algoritmos onde os nós possam ser reciclados (principalmente em ambinetes sem _garbage collection_). Um CAS pergunta efectivamente "É o valor de **V** ainda **A**?", e prossegue com a actualização se for. Na maioria das situações, incluindo os exemplos apresentados neste capítulo, isso é completamente suficiente. No entanto, por vezes nós realmente queremos perguntar "O valor de **V** mudou desde da minha última observação em que obtive o valor **A**?". Para alguns algoritmos, alterando **V** de **A** para **B** e depois de novo para **A** ainda constitui uma situação que requer a repetição de algum passo do algoritmo.
+- O problema ABA é uma anomalia que pode surgir com o uso ingénuo do _compare-and-swap_ em algoritmos onde os nós das estruturas ligadas possam ser reciclados (principalmente em ambientes sem _garbage collection_). Um CAS pergunta efectivamente "É o valor de **V** ainda igual a **A**?", e prossegue com a actualização se a resposta for afirmativa. Na maioria das situações, incluindo os exemplos apresentados neste capítulo, isso é completamente suficiente. No entanto, por vezes nós realmente queremos perguntar "O valor de **V** mudou desde da minha última observação em que obtive o valor **A**?". Para alguns algoritmos, alterando **V** de **A** para **B** e depois de novo para **A** ainda constitui uma situação que requer a repetição de algum passo do algoritmo.
 
 - Este problema ABA pode ocorrer me algoritmos que fazer a sua própria gestão de memória para os objectos usados nos nós das estuturas de dados ligadas. Neste caso, o facto da cabeça da lista ainda se referir a um nó previamente observado não é suficiente para garantir que o conteúdo da lista não se alterou. Se não consegue evitar o problema ABA deixando a gestão dos nós ao _garbage collector_, existe ainda um solução relativamente simples: em vez de actualizar o valor de uma referência, actualize um **par** de valores, uma referência e um número de versão. Mesmo que o valor muda de **A** para **B** de de novo para **A**, os números de versão serão diferentes. A classe `AtomicStampedReference` (e a sua prima `AtomicMarkableReference`) providencia actualizações atómicas num par de variáveis. `AtomicStampedReference` actualiza um par referência-inteiro, permitindo referências "versionadas" que são imunes ao problema ABA (embora teoricamente o contador possa dar a volta). Da mesma forma, `AtomicMarkableReference` actualiza um par referência-booleano que utilizado em alguns algoritmos para permitir que um nó permanece numa lista enquanto marcado como eliminado.
 
 - Muitos processadores providenciam uma operação CAS _double-wide_ (CAS2 ou CASX) que pode operar num par ponteiro-inteiro, o que torna esta operação razoavelmente eficiente. A partir do _Java_ 6, `AtomicStampedReference` não utiliza CAS _double-wide_ mesmo nas plataformas que o suportam. (CAS _double-wide_ é diferente de DCAS, que opera em duas posições de memória arbitrárias; a partir de 2015, o DCAS não é suportado por nenhum processador de utilização generalizada.)
 
 
-
 ### Operações Atómicas no .NET _Framework_
 
-- No .NET _framework_ as operações atómicas estão disponíveis através de métodos estáticos da classe `System.Threading.Interlocked`, nomeadamente `Add`, `CompareExchange`, `Decrement`, `Exchange` e `Increment`. As operações atómicas estão disponíveis para os tipos `Int32` e `Int64`. As operações atómicas _exchange_ e _compare-exchange_ estão disponíveis para os tipos `Int32`, `Int64`, `Single`, `Double`, `Object`, `IntPtr` e para qualquer tipo referência `T`.   
+- No .NET _framework_ as operações atómicas estão disponíveis através de métodos estáticos da classe `System.Threading.Interlocked`, nomeadamente `Add`, `CompareExchange`, `Decrement`, `Exchange` e `Increment`. As operações atómicas aritméticas estão disponíveis para os tipos `Int32` e `Int64`. As operações atómicas _exchange_ e _compare-exchange_ estão disponíveis para os tipos `Int32`, `Int64`, `Single`, `Double`, `Object`, `IntPtr` e para qualquer tipo referência `T`.   
 
-- A classe `System.Threading.Interlocked` define também método estático `Read` que permite realizar leituras atómicas de `Int64` (64-bit), e dois métodos para interpor barreiras de memória com semântica _full-fence_: `MemoryBarrier` e `MemoryBarrierProcessWide`. O método `MemoryBarrier` interpõe uma barreira _full-fence_ no processador que executa a _thread_ que fez a chamada (um dos efeitos desta barreira é fazer _flush_ da _write queue_ do processador) e é normalmente implementada com a instrução atómica _exchange_. O método `MemoryBarrierProcessWide` interpõe uma barreira _full-fence_ em todos os processadores que estão a executar _threads_ do processo corrente. (Em _Winodws_ este método faz uma chamada ao à API `FlushProcessWriteBuffers` e no _Linux_ chama o _system call_ `sys_membarrier`).
+- A classe `System.Threading.Interlocked` define também método estático `Read` que permite realizar leituras atómicas de `Int64` (64-bit), e dois métodos para interpor barreiras de memória com semântica _full-fence_: `MemoryBarrier` e `MemoryBarrierProcessWide`. O método `MemoryBarrier` interpõe uma barreira _full-fence_ no processador que executa a _thread_ que fez a chamada (um dos efeitos desta barreira é fazer _flush_ da _write queue_ do processador) e é normalmente implementada com a instrução atómica _exchange_. O método `MemoryBarrierProcessWide` interpõe uma barreira _full-fence_ em todos os processadores que estão a executar _threads_ do processo corrente. (Em _Windows_ este método faz uma chamada ao à API `FlushProcessWriteBuffers` e no _Linux_ chama o _system call_ `sys_membarrier`).
 
 - Tal como acontece no _Java_, no .NET _framework_ as variáveis sobre as quais são feitas operações atómicas para garantir que os acessos normais de leitura e escrita têm semântica de _volatile read_ e _volatile write_, respectivamente.
 
@@ -365,11 +364,11 @@ public class TreiberStack<E>  where E: class {
 		Node<E> updatedTop = new Node<E>(item);
 		while (true) {
 			// step 1
-			Node<E> observedTop = top;
+			Node<E> observedTop = top;	// volatile read - acquire semantics
 			// step 2.i - link the new top node to the previous top node
 			updatedTop.next = observedTop;
 			// step 3.
-			if (Interlocked.CompareExchange(ref top, updatedTop, observedTop) == observedTop)
+			if (Interlocked.CompareExchange(ref top, updatedTop, observedTop) == observedTop) // release semantics
 				// outcome 3.i: success
 				break;
 				
