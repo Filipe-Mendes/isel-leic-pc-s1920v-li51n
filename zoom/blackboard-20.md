@@ -77,6 +77,8 @@ T t = EndXxx(BeginXxx(U u, ..., V v, ...));	 // equivalent to T Xxx(U u, ..., V 
 
 - Por exemplo, no sistema operativo _Windows_ quando é invocada assíncronamente a API `ReadFile` especifica-se uma instância da estrutura `OVERLAPPED` que representa a operação assíncrona (funcionalidade equivalente à do objecto que implementa `IAsyncResult` no APM) -, é a _thread_ invocante faz a preparação do processamento da leitura, construindo um IRP para descrever completamente o pedido de leitura; depois, entrega o IRP ao respectivo _device driver_ que em conjunto com o respectivo _hardware_ executa autonomamente a leitura no respectivo dispositivo periférico subjacente; depois, a _thread_ invocante retorna da API `ReadFile` devolvendo a indicação de que a operação foi executada sincronamente (situação em que `ReadFile` devolve `TRUE`) ou se ficou pendente (situação em que `ReadFile` devolve `FALSE` e a API `GetLastError` devolve o código de erro `ERROR_IO_PENDING`, que não se trata própriamente de um código de error). No primeiro caso, os dados lidos do periférico estão disponíveis e podem ser processados de imediato. No segundo caso, é necessáro usar uma das formas disponíveis no _Windows_ para fazer o _rendezvous_ com a conclusão das operações de I/O assícronas - por exemplo usar a API `GetOverlappedResult` especificando a respectiva estrutura ` `OVERLAPPED` - para saber quando os resultados da leitura estão disponíveis. A API `GetOverlappedResult` implementa a funcionalidade que no modelo APM está disponível através da interface `IAsyncResult` e com o método `EndXxx`.
 
+#### Conclusões
+
 - Usando o _rendezvous_ com a conclusão das operações assíncronas - obtenção do resultado da operação assíncrona e respectivo processamento - pelo método _callback_ deixa de haver qualquer relação entre _threads_ e o código que cada uma delas executa; neste cenário, o código das aplicações é simplesmente executado por um conjunto de _worker threads_, que o _runtime_ pode gerir em _pool_.
 
 - O modelo de execução assíncrono, que segue o padrão _Continutaion Passing Style_ (CPS), é baseado no lançamento de operações executadas assincronamente em conjunto com a especificação do código que processa o resultado das operações, designado frequentemente por continuações.
@@ -85,9 +87,9 @@ T t = EndXxx(BeginXxx(U u, ..., V v, ...));	 // equivalent to T Xxx(U u, ..., V 
 
 - Os principais custos associados à utilização de _threads_ são os seguintes:
 
-	- Custo fixo proporcional ao número total de _threads_ em cada momento: memória não paginada para albergar uma ou mais estruturas de dados que representa a _thread_ no sistema operativo assim comoo _stack_ de modo _kernel_ (Windows 3 páginas - 12Kb - em 32-bit e 6 páginas - 24kB - em 64-bit); espaço de endereçamento virtual para o _stack_ de modo utlizador.
+	- Custo fixo proporcional ao número total de _threads_ em cada momento: memória não paginada para albergar uma ou mais estruturas de dados que representa a _thread_ no sistema operativo assim comoo _stack_ de modo _kernel_ (_Windows_ a 64-_bit_ são usadas 6 páginas de memória por _thread_- 24KB - em 64-_bit_); espaço de endereçamento virtual para o _stack_ de modo utlizador, que apenas sendo _commited_ há medida que as página virtuais vão sendo utilizadas, tem que ser reservado quando as _threads_ são criadas (no _Windows_, por omissão, a reserva de espaço de endereçamento para o _stack_ de modo utilizador é 1 MB).
 
-	- Custo variável associado à actividade do _scheduler_ do sistema operativo e que é proporcial ao excesso de _threads_ no estado _ready_, relativamente ao número de processadores do sistema.
+	- Custo variável associado à actividade do _scheduler_ do sistema operativo e que é proporcioal ao excesso de _threads_ no estado _ready_, relativamente ao número de processadores do sistema.
 
 ### Número Óptimo de _Worker Threads_ num _Thread Pool_
 
