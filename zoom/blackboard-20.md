@@ -1,4 +1,4 @@
-# Aula 20 - Introdução à Programação Assincrona (I)
+# Aula 20 - Introdução à Programação Assincrona
 
 ___
 
