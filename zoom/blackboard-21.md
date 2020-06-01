@@ -11,7 +11,7 @@ ___
 - Características do _thread pool executor_ no _Java_; classe `java.util.concurrent.ThreadPoolExecutor`; critérios para injecção e retirada de _wroker threads_; programa para monitorizar a injecção e retirada de _threads_;
 
 
-### _Thread Pools_
+## _Thread Pools_
 
 - A utilização de interfaces assíncronas baseadas em _callback_ remove completamente qualquer afinidade entre o código executado pelas aplicações e as _threads_ que o executa, a forma mais eficiente de gerir as _threads_ necessárias para executar as aplicações é centralizar a gestão _worker threads_ - criação de novas _worker threads_, _scheduling_ dos _work items_ para execução e a terminação de _worker threads_ consideradas em excesso - numa única entidade que se designa normalmente por **_thread pool_**.
 
@@ -20,7 +20,7 @@ ___
 - Quando mais centralizada for a gestão das _worker threads_, mais eficaz será uma gestão que consiga manter o número óptimo de _worker threads_ nas várias situações de carga e tendo em consideração a natureza do código (_cpu-bound_ ou _I/O-bound_) a executar.
 
 
-### Características do _Thread Pool_ no .NET _Framework_
+## Características do _Thread Pool_ no .NET _Framework_
 
 - Existe um único _thread pool_ para servir todos os _AppDomains_ a executar na mesma instância do CLR (_Common Language Runtime_), cuja funcionalidade base (o _thread pool_ também tem a funcionalidade de _Task Scheduler_) é acedida com métodos estáticos da classe `System.Threading.ThreadPool`, nomeadamente o método `ThreadPool.QueueUserWorkItem` que permite agendar _work items_ para execução.
 
@@ -30,7 +30,7 @@ ___
 
 - A funcionalidade básica do _thread pool_ é estendida com a implementação da técnica de _work-stealing_ que é usado pela _Task Parallel Libray_ como _Default Task SCheduler_. Para implementar _work-stealing_, para além da fila global onde são colocados os _work items_ agendados com `ThreadPool.QueueUserWorkItem` e os _work items_ agendados por _threads_ que não sejam _worker threads_, cada _worker thread_ tem uma fila privada onde são colocados os _work items_ por si agendados e de onde, preferencialmente, retira _work items_ para execução. Estas filas são acedidas diferentemente nas suas duas extremidades: (a) uma das extremidades é usada apenas pela respectiva _worker thread_ para inserir e remover _work items_, seguindo uma ordem LIFO e requer apenas uma sincronização simplificada, que é mais eficiente; (b) a outra extremidade, que pode ser acedida simultaneamente por várias _worker threads_ - quando as respectivas filas privadas e a fila global ficam vazias para "roubar" _work items_ nas filas privadas das outras _worker threads_- requer sincronização completa. Este desenho, para além de permitir outras optimizações, visa essencialmente dimunuir a contenção sobre a fila global de _work items_ em cenários onde o ritmo de agendamento de trabalho é muito elevado como acontece nos _frameworks_ baseados em _tasks_.
 
-#### Injecção de _Worker Threads_
+### Injecção de _Worker Threads_
 
 - No _thread pool_ do .NET _Framework_, existem dois mecanismos principais para injectar _worker threads_: um dos mecanismos visa **prevenir a _starvation_** e injecta _worker threads_ quando constata que não existe progresso na execução de _work items_ e uma **heurística _hill-climbing_** que procura **maximizar o _throughput_** (_work items_ executados por unidade de tempo com a necessária normalização) **enquanto utiliza o mínimo número de _worker threads_ possível**.
 
@@ -43,18 +43,39 @@ ___
 - Assim, uma razão para manter os _work items_ curtos é evitar a detecção de _starvation_, mas existe outra razão que é dar ao _thread pool_ mais oportunidades de melhorar o _throughput_ através do ajuste do número de _worker threads_. Quanto mais curtos for a duração dos _work items_ individuais, mais frequentemente o _thread pool_ poderá medir o _throughput_ e ajustar o número de _threads_ em função dessas medidas.
 
 
-#### Retirada das _Worker Threads_
+### Retirada das _Worker Threads_
 
 - As _worker threads_ activas terminam quando decorrer uma determinado intervalo de tempo (na implementação corrente são 20 segundos) sem que sejam utilizadas para executar nenhum _work item_. As _worker threads_ são mobilizadas com ordem LIFO, para aproveitar o aquecimento das _caches_ e também para facilitar a medida do tempo de inactividade.
 
-### Programa para Monitorizar a Injecção e Retirada de _Worker Threads_
+
+### Programa para Monitorizar a Injecção e Retirada de _Worker Threads_ no .NET _Framework_
 
 - [Aqui](https://github.com/carlos-martins/isel-leic-pc-s1920v-li51n/blob/master/src/thread-pool-monitor/ThreadPoolMonitor.cs) encontra-se um programa que permite monitorizar a injecção e retirada de _worker thread_ no _thread pool_ do .NET _Framework_ para dois tipos de _workload_: _cpu-bound_ e _i/o-bound_.
 
- 
+- O programa deve ser compilado com o comando `csc ThreadPoolMonitor.cs` e executado com os comandos: (a) `ThreadPoolExecutor -cpu` para monitorizar a injecção e retirada de _worker threads_ com uma _workload cpu-bound_, e; (b) `ThreadPoolExecutor -io` para monitorizar a injecção e retirada de _worker threads_ com uma _workload io-bound_.
+
+- Quando se executa o programa com _workload cpu-bound_ observamos o seguinte:
+
+	 - São injectadas imediatamente, devido ao agendamento de _work items_ o número de _worker threads_ especificadas como o parâmetro de configuração que define o número mínimo de _worker threads_ (por omissão, é igual ao número de processadores da máquina);
+	 
+	 - Depois, observaremos a injecção de uma _worker thread_ com intervalos crescentes que é a reacção do _thread pool_ aquilo que julga ser uma situação de _deadlock_, pois detecta que o ritmo de conclusão de _work items_ é baixo;
+	 
+	 - Este comportamento é correcto pois, como se trata de _workload cpu-bound_ (que nunca bloqueia a _thread_ invocante) assim que o número de _worker threads_ for igual ao número de processadores fica a consumir-se 100% da capacidade de processamento (o que poderá observar executando o utilitário _Task Manager_). A injecção de _worker threads_ adicionais para além do número de processadores só contibuirá para aumentar o _overhead_ devido à actividade de _scheduling_.
+	 
+	 - Podemos também verificar que  retirada das _worker threads_ ocorre ao fim de cerca de 20 segundo de inactividade.
+	 
+- Quando se executa o programa com _workload io-bound_ observamos o seguinte:
+
+	 - São injectadas imediatamente, devido ao agendamento de _work items_ o número de _worker threads_ especificadas como o parâmetro de configuração que define o número mínimo de _worker threads_ (por omissão, é igual ao número de processadores da máquina);
+	 
+	 - Depois, observaremos que é injectada um _worker thread_ a intervalos que podem ser de meio segundo ou de um segundo, que é a resposta da heurística _hill-climbing_ visando melhorar o _throughput_ medido em _work items_ executados por unidade de tempo. O _thread pool_ mede o _throughput_ a intervalos de meio segundo, pelo que a injecção observada mostra que nem em todas as observações a heurística _hill-climbing_ decide injectar uma nova _worker thread_;
+	 
+	 - Este comportamento é correcto pois, como se trata de _workload io-bound_ (que bloqueia a _thread_ invocante durante a execução de todo o _work item_), os processadores estão a maior parte do tempo _idle_, pelo que a injecção de novas _worker threads_ vai melhorar quase sempre _throughput_.
+	 
+	 - Podemos também verificar que  retirada das _worker threads_ ocorre ao fim de cerca de 20 segundos de inactividade.
 
 
-### Características dos _Thread Pools_ no _Java_
+## Características dos _Thread Pools_ no _Java_
 
 - O _Java_ não segue o mesmo princípio do .NET _Framework_ de centralizar a gestão num único _pool_ de _worker threads_. Existem duas classes que implementam _thread pools_ - `java.util.concurrent.ThreadPoolExecutor` e `java.util.concurrent.ForkJoinPool` - e podem ser criadas um número arbitrário de instâncias destas classes.
 
@@ -64,7 +85,7 @@ ___
 
 - A classe `ForkJoinPool` suporta também a funcionalidade de _work-stealing_ e é usado pelo _fork/join framework_ e pela classe `java.util.concurrent.CompletableFuture`.
 
-#### Injecção de `Worker Threads` no `ThreadPoolExecutor`
+### Injecção de `Worker Threads` no `ThreadPoolExecutor`
 
 - No `ThreadPoolExecutor` a injecção de _worker threads_ é feita exclusivamente em função do agendamento de _work items_ para execução. Quando é solicitado o agendamento de um _work item_ para execução:
 	
@@ -74,8 +95,35 @@ ___
 	
 	3. Se o número de _worker threads_ activas já tiver atingido o valor máximo, o _work item_ é colocado na _work queue_ se esta ainda tiver capacidade; caso contrário, o _work item_ é rejeitado e o método que faz o agendamente lança `RejectedExecutionException.
 
-#### Retirada das _Worker Threads_
+### Retirada das _Worker Threads_ no `ThreadPoolExecutor`
 
 - As _worker threads_ activas terminam quando decorrer o intervalo de tempo especificado com o parâmetro de construção `keepAliveTime` sem que sejam utilizadas para executar nenhum _work item_ e o número de _worker threads_ activas seja maior do que o valor especificado com o parâmetro de configuação `corePoolSize`. As _worker threads_ são mobilizadas com ordem LIFO, para aproveitar o aquecimento das _caches_ e também para facilitar a medida do tempo de inactividade.
+
+
+### Programa para Monitorizar a Injecção e Retirada de _Worker Threads_ no no `ThreadPoolExecutor`
+
+- [Aqui](https://github.com/carlos-martins/isel-leic-pc-s1920v-li51n/blob/master/src/thread-pool-monitor/ThreadPoolMonitor.java) encontra-se um programa que permite monitorizar a injecção e retirada de _worker thread_ no `ThreadPoolExecutor` do _Java_ para dois tipos de _workload_: _cpu-bound_ e _i/o-bound_.
+
+- O programa pode ser compilado com o comando `javac ThreadPoolMonitor.java` e executado com os comandos: (a) `java ThreadPoolExecutor -cpu` para monitorizar a injecção e retirada de _worker threads_ com uma _workload cpu-bound_, e; (b) `java ThreadPoolExecutor -io` para monitorizar a injecção e retirada de _worker threads_ com uma _workload io-bound_.
+
+- Quando se executa o programa com _workload cpu-bound_ ou com _workload i/o bound_ observamos sempre o seguinte:
+
+	 - São injectadas imediatamente, devido ao agendamento de _work items_ um número de _worker threads_ especificadas como o parâmetro de configuração `maximumPoolSize`;
+	 
+	 - Este o comportamento que decorre da aplicação da política de injecção de _worker threads_ neste _thread pool_ que cria sempre uma nova _worker thread_ com o agendamento de _work items_ se o número de _worker threads_ activas for menor do que especificado com `maximumPoolSize`. Este comportamento não depende da natureza da _workload_ pelo que é o mesmo para _cpu-bound_ ou _i/o bound.
+	  
+	 - Podemos também verificar que  retirada das _worker threads_ ocorre ao fim de cerca de 20 segundos de inactividade.
+	 
+- Quando se executa o programa com _workload io-bound_ observamos o seguinte:
+
+	 - São injectadas imediatamente, devido ao agendamento de _work items_ o número de _worker threads_ especificadas como o parâmetro de configuração que define o número mínimo de _worker threads_ (por omissão, é igual ao número de processadores da máquina);
+	 
+	 - Depois, observaremos que é injectada um _worker thread_ a intervalos que podem ser de meio segundo ou de um segundo, que é a resposta da heurística _hill-climbing_ visando melhorar o _throughput_ medido em _work items_ executados por unidade de tempo. O _thread pool_ mede o _throughput_ a intervalos de meio segundo, pelo que a injecção observada mostra que nem em todas as observações a heurística _hill-climbing_ decide injectar uma nova _worker thread_;
+	 
+	 - Este comportamento é correcto pois, como se trata de _workload io-bound_ (que bloqueia a _thread_ invocante durante a execução de todo o _work item_), os processadores estão a maior parte do tempo _idle_, pelo que a injecção de novas _worker threads_ vai melhorar quase sempre _throughput_.
+	 
+	 - Podemos também verificar que  retirada das _worker threads_ ocorre ao fim de cerca de 20 segundos de inactividade, que foi o tempo especificado para o parâmetro de configuação `keepAliveTime`.
+
+____
 
 
