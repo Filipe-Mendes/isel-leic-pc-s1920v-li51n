@@ -62,7 +62,7 @@ ___
 	 
 	 - Este comportamento é correcto pois, como se trata de _workload cpu-bound_ (que nunca bloqueia a _thread_ invocante) assim que o número de _worker threads_ for igual ao número de processadores fica a consumir-se 100% da capacidade de processamento (o que poderá observar executando o utilitário _Task Manager_). A injecção de _worker threads_ adicionais para além do número de processadores só contibuirá para aumentar o _overhead_ devido à actividade de _scheduling_.
 	 
-	 - Podemos também verificar que  retirada das _worker threads_ ocorre ao fim de cerca de 20 segundo de inactividade.
+	 - Podemos também verificar que  retirada das _worker threads_ ocorre ao fim de cerca de 20 segundos de inactividade.
 	 
 - Quando se executa o programa com _workload io-bound_ observamos o seguinte:
 
