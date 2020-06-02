@@ -375,7 +375,7 @@ class ThreadInterruptionRuleDemo {
 
 - Todas as acções dentro da _thread_ A são ordenadas pelo regra da ordem de programa, assim como o são as acções realizadas pela _thread_ B.
 
-- Porque A liberta o _lock_ M e B subsequentemente adquire M, todas as acções em B depois da aquisição do _lock_ M são, por isso, ordenadas antes das acções na _thread_ B depois da aquisição do _lock_. Quando duas _threads_ se sincronizam em _locks_ **diferentes**, não podemos afirmar nada acerca da ordenação das acções realizadas pelas duas _threads_.
+- Porque a _thread_ A liberta o _lock_ M e a _thread_ B adquire subsequentemente M, todas as acções em A antes de libertar o _lock_ M são, pela regra da relação _happens-before_ relacionada com _locks_, ordenadas antes das acções realizadas na _thread_ B depois da aquisição do _lock_ M. Quando duas _threads_ se sincronizam em _locks_ **diferentes**, não podemos afirmar nada acerca da ordenação das acções realizadas pelas duas _threads_.
 
 ### _Piggybacking_ na Sincronização da Biblioteca Standard
 
