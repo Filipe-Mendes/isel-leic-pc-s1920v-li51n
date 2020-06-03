@@ -50,7 +50,7 @@ ___
 
 ### Programa para Monitorizar a Injecção e Retirada de _Worker Threads_ no .NET _Framework_
 
-- [Aqui](https://github.com/carlos-martins/isel-leic-pc-s1920v-li51n/blob/master/src/thread-pool-monitor/ThreadPoolMonitor.cs) encontra-se um programa que permite monitorizar a injecção e retirada de _worker thread_ no _thread pool_ do .NET _Framework_ para dois tipos de _workload_: _cpu-bound_ e _i/o-bound_.
+- Em [ThreadPoolMonitor.cs](https://github.com/carlos-martins/isel-leic-pc-s1920v-li51n/blob/master/src/thread-pool-monitor/ThreadPoolMonitor.cs) encontra-se um programa que permite monitorizar a injecção e retirada de _worker thread_ no _thread pool_ do .NET _Framework_ para dois tipos de _workload_: _cpu-bound_ e _i/o-bound_.
 
 - O programa deve ser compilado com o comando `csc ThreadPoolMonitor.cs` e executado com os comandos: (a) `ThreadPoolExecutor -cpu` para monitorizar a injecção e retirada de _worker threads_ com uma _workload cpu-bound_, e; (b) `ThreadPoolExecutor -io` para monitorizar a injecção e retirada de _worker threads_ com uma _workload io-bound_.
 
@@ -102,7 +102,7 @@ ___
 
 ### Programa para Monitorizar a Injecção e Retirada de _Worker Threads_ no no `ThreadPoolExecutor`
 
-- [Aqui](https://github.com/carlos-martins/isel-leic-pc-s1920v-li51n/blob/master/src/thread-pool-monitor/ThreadPoolMonitor.java) encontra-se um programa que permite monitorizar a injecção e retirada de _worker thread_ no `ThreadPoolExecutor` do _Java_ para dois tipos de _workload_: _cpu-bound_ e _i/o-bound_.
+- Em [ThreadPoolExecutor](https://github.com/carlos-martins/isel-leic-pc-s1920v-li51n/blob/master/src/thread-pool-monitor/ThreadPoolMonitor.java) encontra-se um programa que permite monitorizar a injecção e retirada de _worker thread_ no `ThreadPoolExecutor` do _Java_ para dois tipos de _workload_: _cpu-bound_ e _i/o-bound_.
 
 - O programa pode ser compilado com o comando `javac ThreadPoolMonitor.java` e executado com os comandos: (a) `java ThreadPoolExecutor -cpu` para monitorizar a injecção e retirada de _worker threads_ com uma _workload cpu-bound_, e; (b) `java ThreadPoolExecutor -io` para monitorizar a injecção e retirada de _worker threads_ com uma _workload io-bound_.
 
