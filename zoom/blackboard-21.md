@@ -50,7 +50,7 @@ ___
 
 ### Programa para Monitorizar a Injecção e Retirada de _Worker Threads_ no .NET _Framework_
 
-- Em [ThreadPoolMonitor.cs](https://github.com/carlos-martins/isel-leic-pc-s1920v-li51n/blob/master/src/thread-pool-monitor/ThreadPoolMonitor.cs) encontra-se um programa que permite monitorizar a injecção e retirada de _worker thread_ no _thread pool_ do .NET _Framework_ para dois tipos de _workload_: _cpu-bound_ e _i/o-bound_.
+- No ficheiro [ThreadPoolMonitor.cs](https://github.com/carlos-martins/isel-leic-pc-s1920v-li51n/blob/master/src/thread-pool-monitor/ThreadPoolMonitor.cs) está um programa que permite monitorizar a injecção e retirada de _worker thread_ no _thread pool_ do .NET _Framework_ para dois tipos de _workload_: _cpu-bound_ e _i/o-bound_.
 
 - O programa deve ser compilado com o comando `csc ThreadPoolMonitor.cs` e executado com os comandos: (a) `ThreadPoolExecutor -cpu` para monitorizar a injecção e retirada de _worker threads_ com uma _workload cpu-bound_, e; (b) `ThreadPoolExecutor -io` para monitorizar a injecção e retirada de _worker threads_ com uma _workload io-bound_.
 
@@ -85,7 +85,7 @@ ___
 
 - A classe `ForkJoinPool` suporta também a funcionalidade de _work-stealing_ e é usado pelo _fork/join framework_ e pela classe `java.util.concurrent.CompletableFuture`.
 
-### Injecção de `Worker Threads` no `ThreadPoolExecutor`
+### Injecção de _Worker Threads_ no `ThreadPoolExecutor`
 
 - No `ThreadPoolExecutor` a injecção de _worker threads_ é feita exclusivamente em função do agendamento de _work items_ para execução. Quando é solicitado o agendamento de um _work item_ para execução:
 	
@@ -102,7 +102,7 @@ ___
 
 ### Programa para Monitorizar a Injecção e Retirada de _Worker Threads_ no no `ThreadPoolExecutor`
 
-- Em [ThreadPoolExecutor](https://github.com/carlos-martins/isel-leic-pc-s1920v-li51n/blob/master/src/thread-pool-monitor/ThreadPoolMonitor.java) encontra-se um programa que permite monitorizar a injecção e retirada de _worker thread_ no `ThreadPoolExecutor` do _Java_ para dois tipos de _workload_: _cpu-bound_ e _i/o-bound_.
+- No ficheiro [ThreadPoolExecutor.java](https://github.com/carlos-martins/isel-leic-pc-s1920v-li51n/blob/master/src/thread-pool-monitor/ThreadPoolMonitor.java) está um programa que permite monitorizar a injecção e retirada de _worker thread_ no `ThreadPoolExecutor` do _Java_ para dois tipos de _workload_: _cpu-bound_ e _i/o-bound_.
 
 - O programa pode ser compilado com o comando `javac ThreadPoolMonitor.java` e executado com os comandos: (a) `java ThreadPoolExecutor -cpu` para monitorizar a injecção e retirada de _worker threads_ com uma _workload cpu-bound_, e; (b) `java ThreadPoolExecutor -io` para monitorizar a injecção e retirada de _worker threads_ com uma _workload io-bound_.
 
