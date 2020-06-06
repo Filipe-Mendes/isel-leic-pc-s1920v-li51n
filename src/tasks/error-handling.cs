@@ -4,7 +4,7 @@
  *
  * Processing task errors
  *
- * Carlos Martins, June 2016
+ * Carlos Martins, June 2020
  *
  */
 

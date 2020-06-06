@@ -24,7 +24,7 @@ public class IgnoringErrors {
 				Console.WriteLine($"***exception sender type: {sender.GetType()}");
 				
 				foreach (Exception ex in e.Exception.InnerExceptions)
-					Console.WriteLine($"**unobserved exception handler due to: {ex.Message}");
+					Console.WriteLine($"**unobserved exception {ex.GetType().Name}: {ex.Message}");
 
 				// comment the next line to do not observe the exception
 				e.SetObserved();

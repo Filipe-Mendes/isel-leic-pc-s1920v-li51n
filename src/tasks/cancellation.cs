@@ -45,7 +45,7 @@ public static class Cancellation {
 	
 	public static void Main() {
 		// the source of cancellation
-		CancellationTokenSource cts = new CancellationTokenSource();
+		CancellationTokenSource cts = new CancellationTokenSource(2500);	// cancel automatically after 2500 ms
 		// task receives the underlying CancellationToken
 		CancellationToken ctoken = cts.Token;
 				
