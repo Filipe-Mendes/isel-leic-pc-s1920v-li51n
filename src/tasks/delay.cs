@@ -1,3 +1,13 @@
+/**
+ *
+ * ISEL, LEIC, Concurrent Programming
+ *
+ * Implementing an assincronos delay using the type TaskCompletionSource<TResult>
+ *
+ * Carlos Martins, June 2020
+ *
+ **/
+
 using System;
 using System.Diagnostics;
 using System.Threading;
@@ -17,7 +27,7 @@ class Delay {
 		Timer timer = null;
 		CancellationTokenRegistration ctokenRegistration;
 		
-		// register a cancellation hanler if the cancellation token can be cancelled
+		// if the cancellation token can be canceled, register a cancellation handler with it
 		if (ctoken.CanBeCanceled) {
 			ctokenRegistration = ctoken.Register(() => {
 				if (tcs.TrySetCanceled(ctoken))

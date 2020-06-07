@@ -1,1 +1,3 @@
 tmp/
+src/*/*.class
+src/*/*.exe
