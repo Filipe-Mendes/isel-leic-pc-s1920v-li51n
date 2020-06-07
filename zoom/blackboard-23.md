@@ -6,17 +6,17 @@ ___
 
 - Revisão sobre as relações entre _tasks_ abordadas na aula anterior.
 
-- Tipo `TaskCompletionSource<T>` e respectiva utilização ("everything can be a task !"); exemplo de utilização na implementação de um método para executar assincornamente um _delay_.
+- Tipo `TaskCompletionSource<T>` e respectiva utilização ("_everything can be a task_ !"); exemplo de utilização na implementação de um método para executar assincronamente um _delay_.
 
 - Modelo de invocação assíncrona _Task-based Asynchronous Pattern_ (TAP). Implementação de interfaces assíncrons segundo o modelo TAP com base em interfaces segundo o modelo APM.
 	
 ### _Everything is a Task_
 	
-- Atrás dissemos que uma `Task` representa uma peça de actividade assíncrona. Esta actividade assíncrona pode ser computação mas também pode ser de I/O. Um exemplo de uma _task_ que não é de computação é quando se transforma uma implementação da interface `IAsyncResult` e o _end method_ ao estilo APM associado a uma operação assíncrona numa `Task`utilizando o método `TaskFactory.FromAsync`. Xxx
+- Atrás dissemos que uma `Task` representa uma peça de actividade assíncrona. Esta actividade assíncrona pode ser computação mas também pode ser de I/O. Um exemplo de uma _task_ que não é de computação é o resultado da transformação de uma implementação da interface `IAsyncResult` e do respectivo _end method_ de uma operação assíncrona APM numa _task_ (estilo TAP) utilizando o método `TaskFactory.FromAsync`.
 
 #### `TaskCompletionSource<TResult>`
 	
-- O tipo `TaskCompletionSource<T>` tem duas responsabilidades, uma das quais é produzir um objecto do tipo `Task<T>`. A outra é providenciar um conjunto de métodos para controlar o resultado da _task_. Vimos atrás que uma _task_ pode terminar num de três estados (`RanToCompletion`, `Canceled`, `Faulted`). A seguir mostramos um subconjunto dos métodos a classe `TaskCompletionSource<TResult>`.
+- O tipo `TaskCompletionSource<T>` tem duas responsabilidades: uma é produzir um objecto do tipo `Task<T>`; a outra é providenciar um conjunto de métodos para controlar o resultado daquela _task_. Na aula anterior dissemos que uma _task_ pode terminar num de três estados (`RanToCompletion`, `Canceled`, `Faulted`). A seguir mostramos um subconjunto dos métodos a classe `TaskCompletionSource<TResult>`.
 	
 ```C#
 public class TaskCompletionSource<TResult> {
@@ -40,9 +40,9 @@ public class TaskCompletionSource<TResult> {
 
 ```
 
-- Atrás vimos uma API semelhante a esta: `CancellationTokenSource` para controlar o processo de cancelamento. Uma instância de `TaskCompletionSource` é usada em código que que pretende controlar o resultado da instância do tipo `Task` sob controlo de uma instância de `TaskCompletionSource`. Um objecto `TaskCompletionSource` expõe um objecto `Task` por intermédio da sua propriedade `Task`; esta `Task` será passada para o código que pretende observar a _task_. O argumento tipo de `TaskCompletionSource<TResult>` é usado para indicar o tipo do resultado da `Task`. Se deseja produzir uma `Task` em vez de uma `Task<TResult>`, então o conselho da _Microsoft_ é usar uma `TaskCompletionSource<object>`. `Task<object>` estende `Task` pelo que pode ser sempre tratado como apenas uma `Task`.
+- Atrás vimos uma API semelhante a esta: `CancellationTokenSource` para controlar o processo de cancelamento. Uma instância de `TaskCompletionSource` é usada em código que que pretende controlar o resultado da instância do tipo `Task` sob controlo de uma instância de `TaskCompletionSource`. Um objecto `TaskCompletionSource` expõe um objecto `Task` por intermédio da sua propriedade `Task`; essa `Task` será passada para o código que pretende observar o respectivo resultado. O argumento tipo de `TaskCompletionSource<TResult>` é usado para indicar o tipo do resultado da `Task`. Se deseja produzir uma `Task` em vez de uma `Task<TResult>`, a _Microsoft_ aconselha usar uma `TaskCompletionSource<object>`, uma vez que `Task<object>` estende `Task` pelo que pode ser sempre tratado como apenas `Task`.
 
-- O proximo excerto de código mostra um exemplo simples de produzir uma `Task<int>` via a `TaskCompletionSource<int>`. COnsidera-se que a _task_ não será concluída até que seja pressionada a tecla `Enter` e o resultado da _task_ ser definido por uma chamada ao método `SetResult`.
+- O próximo excerto de código mostra um exemplo simples de produzir uma `Task<int>` via a `TaskCompletionSource<int>`. Considera-se que a _task_ não será concluída até que seja pressionada a tecla `Enter` e o resultado da _task_ será definido com a chamada ao método `SetResult`.
 	
 ```C#
 var tcs = new TaskCompletionSource<int>();
@@ -58,7 +58,7 @@ tcs.SetResult(42);
 Console.ReadLine();
 ```
 
-- Outro exemplo de utilização de utilização do tipo `TaskCompletionSource` é a implemantação do método `DelayAsync`, cujo propósito é implementar a funcionalidade de _delay_ que possa ser invocada de forma assíncrona. Usando a classe `System.Threading.Timer`, uma implementação possível é apresentada a seguir.
+- Outro exemplo de utilização de utilização do tipo `TaskCompletionSource` é a implementação do método `DelayAsync`, cujo propósito é implementar a funcionalidade _delay_ que possa ser invocada de forma assíncrona. Usando a classe `System.Threading.Timer`, apresenta-se a seguir uma implementação simplificada de um método que implemente esta funcionalidade.
 
 ```C#
 public static Task DelayAsync(int millisDelay) {
@@ -70,7 +70,7 @@ public static Task DelayAsync(int millisDelay) {
 
 - Associa-se ao _delay_ assíncrono uma instância de `TaskCompletionSource<object>`. Depois lança-se um _timer_ para disparar quando terminar o _delay_; no _callback_ do _timer_ usa-se o método `SetResult` para terminar a `Task` que fica associada à operação de _delay_ assíncrono que é obtida com a propriedade `TaskCompletionSource<TResult>.Task`.  
 
-- Em cenários onde este método fosse usado para associar um _timeout_ a uma operação assíncrona pode ser interessante suportar o cancelamento do _delay_ o que pode ser feito ...
+- Em cenários onde um _delay_ assíncrona seja usado para definir um _timeout_ numa operação assíncrona pode ser interessante suportar o cancelamento do _delay_ o que pode ser feito usando o método cuja implementação se mostra a seguir.
   
 ```C#
 public static Task DelayAsync(int millisDelay, CancellationToken ctoken) {
@@ -98,7 +98,7 @@ public static Task DelayAsync(int millisDelay, CancellationToken ctoken) {
 }
 ```
 
-- Se quisermos fazer um _cleanup_ adequeado, na difinição do _timer callback_ e do _cancellation handler_ temos dependências mútuas, isto é: o _timer callback_ depende da `CancellationTokenRegistration` patra desactivar o _cancellation handler_ e o _cancellation handler_ necessita da referência para o `Timer`para desactivar o _timer_. A solução é providenciar uma iniciação por omissão para as duas variáveis antes da respectiva utilização. Se o _cancellation token_ já estiver no estado cancelado quando se chama o método `CancellationToken.Register` o _callback_ especificado é executado sincronamente, o que não levanta nenhum problema uma vez que o _timer_ ainda não foi criado e portanto é ignorado. Quando o _cancellation token_ transita para o estado cancelado após o registo do _cancellation handler_, este é executado no contexto da _thread_ que invoca o método `Cancel` na respectiva instância de `CancellationTokenSource`. Nesta situação existe uma _race condition_ que é benigna entre a afectação da variável `timer` no método `DelayAsync` e o teste da mesma variável no _cancellation handler_. O pior que pode acontecer é que quando executa o _cancellation handler_ o _timer_ já ter sido activado mas a variável `timer` ainda não ter sido afectada; nesta situação, o _timer_ não será cancelado e acabará por executar o respectivo _callback_ que verificará que a `Task` associada à instância de `TaskCompletionSource` já foi concluída, pois o método `TrySetCanceled` retornará `false`.
+- Se quisermos fazer um _cleanup_ adequeado, na difinição do _timer callback_ e do _cancellation handler_ temos dependências mútuas, isto é: o _timer callback_ depende da `CancellationTokenRegistration` patra desactivar o _cancellation handler_ e o _cancellation handler_ necessita da referência para o `Timer`para desactivar o _timer_. A solução é providenciar uma iniciação por omissão para as duas variáveis antes da respectiva utilização. Se o _cancellation token_ já estiver no estado cancelado quando se chama o método `CancellationToken.Register` o _callback_ especificado é executado sincronamente, o que não levanta nenhum problema uma vez que o _timer_ ainda não foi criado e portanto é ignorado. Quando o _cancellation token_ transita para o estado cancelado após o registo do _cancellation handler_, este é executado no contexto da _thread_ que invoca o método `Cancel` na respectiva instância de `CancellationTokenSource`. Nesta situação existe uma _race condition_ entre a afectação da variável `timer` no método `DelayAsync` e o teste da mesma variável no _cancellation handler_. Esta _race condition_ é benigna, na medida em que pior que pode acontecer é que o _cancellation handler_ ser executado quando o _timer_ já foi activado mas a variável `timer` ainda não foi afectada; nesta situação, o _timer_ não será cancelado e acabará por executar o respectivo _callback_ que verificará que a `Task` associada à instância de `TaskCompletionSource` já foi concluída, pois o método `TrySetCanceled` retornará `false`.
 
 #### Demo
 
@@ -124,7 +124,7 @@ T EndXxx(IAsyncResult asyncResult);
 
 - O _rendezvous_ com a conclusão da operação assíncrona pode ser feito usando técnicas de _polling_ (usando a interface `IAsyncResult`) ou usando a técnica de _callback_ especificando um `completionCallback` na chamada ao método `BeginXxx`.
 
-- Com a introdução da _Task Parallel Library_ (TPL), o .NET _Framework_ definiu um novo modelo de invocação assíncrona designado por _Task-based Asynchronous Pattern_ (TAP), que como o nome indica usa _tasks_ para representar as operações assíncronas. A API TAP para a API síncrona anterior é:
+- Com a introdução da _Task Parallel Library_ (TPL), o .NET _Framework_ definiu um novo modelo de invocação assíncrona designado por _Task-based Asynchronous Pattern_ (TAP), que como o nome indica usa _tasks_ para representar as operações assíncronas. A API segundo o modelo TAP para a API síncrona anterior é:
 
 ```C#
 Task<T> XxxAsync(U u, ..., V v);
@@ -156,7 +156,7 @@ Task<T> XxxAsync(U u, ..., V v) {
 }
 ```
 
-- O tipo `TaskFactory` de o método `TaskFactory.FromAsync` que permite implementar interfaces segundo o estilo TAP com base em interfaces segundo o estilo APM.
+- O tipo `TaskFactory` define o método `TaskFactory.FromAsync` que permite implementar interfaces segundo o estilo TAP com base em interfaces segundo o estilo APM.
 
 ___
 	
