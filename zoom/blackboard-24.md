@@ -499,94 +499,6 @@ public interface INotifyCompletion {
 
 - É assim o objecto _awaiter_ que providencia a funcionalidade de suporte de continuações através da chamada ao método `OnCompleted`. Este método é chamado especificando um _delegate_ que contém o código correspondente ao próximo estado do método assíncrono.
 
-- Com o objectivo de ilustrar o que dissemos atrás e de observar a sequência de passos que ocorrem durante a execução de uma método assíncrono simples, vamos mostrar a implementação e utilização de um _awaiter_ que suspenda a execução do método assíncrono durante 3 segundos.
-
-```C#
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Runtime.CompilerServices;
-
-static class Logger {
-	/**
-	 * Shows the string on the console prefixed with the managed thread id
-	 * of the current thread
-	 */
-	public static void Log(string msg) {
-		Console.WriteLine($"[#{Thread.CurrentThread.ManagedThreadId}]: {msg}");
-	}
-}
-
-/**
- * A custom awaiter that resumes the async method 3 seconds after
- * the call to the OnCompleted() method and produce a result of 42.
- */
-class PauseForAWhileAwaiter : INotifyCompletion {
-	private Task delayTask;
-	
-	public bool IsCompleted {
-		get {
-			bool result = delay != null ? delay.IsCompleted : false;
-			//bool result = true;
-			Logger.Log($"--IsCompleted.get() called, returns: {result}");
-			return result;
-		}
-	}
-
-	// INotifyCompletion
-	public void OnCompleted(Action asyncContinuation) {
-		int start = System.Environment.TickCount;
-		Logger.Log("--OnCompleted() called, the async method will be suspended");
-
-		// Start a delay task, and schedule a continuation that will be resume the async method
-		delayTask = Task.Delay(3000).ContinueWith((_) => {
-			Logger.Log($"--async method resumed, after {System.Environment.TickCount - start} ms");
-			asyncContinuation();
-		});
-	}
-
-	public int GetResult() {
-		Logger.Log("--GetResult() called, returned 42");
-		return 42;
-	}
-}
-
-/**
- * A custom awaiter source that will be used as "awaiter expression".
- */
-class WaitForAWhileAwaiterSource {
-	public PauseForAWhileAwaiter GetAwaiter() {
-		Logger.Log("--GetAwaiter() called");
-		return new PauseForAWhileAwaiter();
-	}
-}
-```
-
-- Este _customer awaiter_ pode ser utilizado com o seguinte código:
-
-```C#
-public class CustomAwaiter {
-
-	/**
-	 * Asynchronous method that uses the custom awaiter.
-	 */
-	private static async Task<int> WaitForAWhileAsync() {
-		Console_.WriteLine("--async method called");
-		int result = await new WaitForAWhileAwaiterSource();
-		return result;
-	}
-	
-	public static void Main() {
-		var asyncTask = WaitForAWhileAsync();
-		Console_.WriteLine("--async method return");
-		asyncTask.Wait();
-		Console_.WriteLine($"--async method result: {asyncTask.Result}");
-	}
-}
-```
-
-- O ficheiro 
-
 - As classes `Task` e `Task<TResult>` implementam um  método `GetAwaiter` que devolver um _awaiter_, que utiliza o tipo `Task` para suportar a funcionalidade requerida pelo objecto _awaiter_. Em certo sentido, podemos considerar que o objecto _awaiter_ é um adaptador. O que é preciso reter é que o objecto _awaiter_ deve ter tudo o que é necessário para determinar as continuações entre os vários estados.
 	
 - Agora que temos os blocos constituitivos para registar nas conclusões, que vão provocar as mudanças de estado na nossa máquina de estados. Podemos agora reescrever o método assíncrono `TickTockAsync` de forma semelhante aquilo que o compilador irá produzir a partir do código apresentado atrás.
@@ -636,6 +548,129 @@ public class TickTockStateMachine {
 ```
 
 - Este código deve ser auto-explicativo. O método `async` original é substituído pela criação de uma instância de uma máquina de estados que é iniciada com uma chamada ao método `MoveNext`. O método `MoveNext` é, de facto, o corpo do método assíncrono original, embora intercadado por um um bloco _switch/case_. O campo `state` é utilizado para determinar qual o código que deve ser executado pelo método `MoveNext` for chamado de novo. Quando cada peça de código atinge o ponto da operação `await` original, é necessáro orquestrar a transição para o próximo estado. Se o objecto _awaiter_ já estiver marcado como completado, a transição para o próximo estado é imediata; caso contrário, é registada uma continuação para chamar o próprio método e retorna. Qaundo o objecto _awaiter_ considera que a operação foi concluída, a continuação passada ao método `OnCompleted` é chamada e será executada a próxima peça de código que é determinada pelo valor do campo `state`. O processo repete-se até que a máquina de estados seja considerada concluída.
+
+
+### _Costum Awaiter_
+
+- Com o objectivo de ilustrar o que dissemos atrás e de observar a sequência de passos que ocorrem durante a execução de uma método assíncrono simples, vamos mostrar a implementação e utilização de um _costum awaiter_ que suspenda a execução do método assíncrono durante 3 segundos.
+
+```C#
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
+
+static class Logger {
+	/**
+	 * Shows the string on the console prefixed with the managed thread id
+	 * of the current thread
+	 */
+	public static void Log(string msg) {
+		Console.WriteLine($"[#{Thread.CurrentThread.ManagedThreadId}]: {msg}");
+	}
+}
+
+/**
+ * A custom awaiter that resumes the async method 3 seconds after
+ * the call to the OnCompleted() method and produce a result of 42.
+ */
+class PauseForAWhileAwaiter : INotifyCompletion {
+	private Task delayTask;
+	
+	public bool IsCompleted {
+		get {
+			bool result = delayTask != null ? delayTask.IsCompleted : false;
+			//bool result = true;
+			Logger.Log($"--IsCompleted.get() called, returns: {result}");
+			return result;
+		}
+	}
+
+	// INotifyCompletion
+	public void OnCompleted(Action asyncContinuation) {
+		int start = System.Environment.TickCount;
+		Logger.Log("--OnCompleted() called, the async method will be suspended");
+
+		// Start a delay task, and schedule a continuation that will be resume the async method
+		delayTask = Task.Delay(3000).ContinueWith((_) => {
+			Logger.Log($"--async method resumed, after {System.Environment.TickCount - start} ms");
+			asyncContinuation();
+		});
+	}
+
+	public int GetResult() {
+		Logger.Log("--GetResult() called, returned 42");
+		return 42;
+	}
+}
+
+/**
+ * A custom awaiter source that will be used as "awaiter expression".
+ */
+class PauseForAWhileAwaiterSource {
+	public PauseForAWhileAwaiter GetAwaiter() {
+		Logger.Log("--GetAwaiter() called");
+		return new PauseForAWhileAwaiter();
+	}
+}
+```
+
+- Este _customer awaiter_ pode ser utilizado com o seguinte código:
+
+```C#
+public class CustomAwaiterDemo {
+
+	/**
+	 * Asynchronous method that uses the custom awaiter.
+	 */
+	private static async Task<int> PauseForAWhileAsync() {
+		Logger.Log("--async method called");
+		int result = await new PauseForAWhileAwaiterSource();
+		Logger.Log($"--async method continues after the await expression, it will return {42}");
+		return result;
+	}
+	
+	public static void Main() {
+		var asyncTask = PauseForAWhileAsync();
+		Logger.Log("--async method returned");
+		asyncTask.Wait();
+		Logger.Log($"--async method returned {asyncTask.Result}");
+	}
+}
+```
+
+- Este código encontra-se no ficheiro [awaiter.cs](https://github.com/carlos-martins/isel-leic-pc-s1920v-li51n/blob/master/src/async-await/awaiter.cs). Se compilar e executar obterá a seguinte sequência de _logs_ na consola:
+
+```
+[#1]: --async method called
+[#1]: --GetAwaiter() called
+[#1]: --IsCompleted.get() called, returns: False
+[#1]: --OnCompleted() called, the async method will be suspended
+[#1]: --async method returned
+[#4]: --async method resumed, after 3031 ms
+[#4]: --GetResult() called, returned 42
+[#4]: --async method continues after the await expression, it will return 42
+[#1]: --async method returned 42
+```
+
+- O métdodo assíncrono `PauseForWhileAsync` é invocado na _thread_ primária (#1). Quando encontra a expressão `await` chama o método `GetAwaiter` sobre o resultado da expressão `new PauseForAWhileAwaiterSource()`, que é mostrado com a mensagem `--GetAwaiter() called`. A seguir, é interrogada a propriedade `IsCompleted` do _awaiter_ devolvido pelo método `GetAwaiter` (uma instância do tipo `PauseForAWhileAwaiter`). Como esta propriedade devolve `false`, o método assíncrona vai ser suspenso, pelo que é invocado o método `OnCompleted` do _awaiter_ para agendar a continuação que vai continuar a execução do método assíncrono quando este for reatado. Toda esta execução decorre na _thread_ primária (#1), isto é, a _thread_ invocante de um método assíncrono executa até ao primeiro ponto de suspensão, onde retorna ao código chamador. Após decorrerem pelo menos 3 segundos, o método assíncrono é reatado executando a continuação agendada anteriormente com o método `OnCompleted` numa _worker thread_ do _thread pool_ (#4). A seguir, é invocado o método `GetResult` do _awaiter_ para obter o resultado da _await expression_ (42) e o método assíncrono termina a execução terminando a _task_ subjacente com o resultado 42. Finalmente, a _thread_ primária retorna do método `Task.Wait` e mostra o resultado do método assíncrono (42).
+
+- Se alterarmos a implementação da propriedade `PauseForAWhileAwaiter.IsCompleted` de modo a devolver `true`, veremos a seguinte seqência de mensagens na consola:
+
+```
+[#1]: --async method called
+[#1]: --GetAwaiter() called
+[#1]: --IsCompleted.get() called, returns: True
+[#1]: --GetResult() called, returned 42
+[#1]: --async method continues after the await expression, it will return 42
+[#1]: --async method returned
+[#1]: --async method returned 42
+```
+
+- Neste caso observamos que a execução do método assíncrono nunca foi suspensa, pelo que executa até ao fim na _thread_ primária (#1).
+
+___
+
 
 
 

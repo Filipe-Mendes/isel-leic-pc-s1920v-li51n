@@ -31,8 +31,8 @@ class PauseForAWhileAwaiter : INotifyCompletion {
 	
 	public bool IsCompleted {
 		get {
-			bool result = delay != null ? delay.IsCompleted : false;
-			//bool result = true;
+			//bool result = delayTask != null ? delayTask.IsCompleted : false;
+			bool result = true;
 			Logger.Log($"--IsCompleted.get() called, returns: {result}");
 			return result;
 		}
@@ -59,7 +59,7 @@ class PauseForAWhileAwaiter : INotifyCompletion {
 /**
  * A custom awaiter source that will be used as "awaiter expression".
  */
-class WaitForAWhileAwaiterSource {
+class PauseForAWhileAwaiterSource {
 	public PauseForAWhileAwaiter GetAwaiter() {
 		Logger.Log("--GetAwaiter() called");
 		return new PauseForAWhileAwaiter();
@@ -71,15 +71,15 @@ public class CustomAwaiterDemo {
 	/**
 	 * Asynchronous method that uses the custom awaiter.
 	 */
-	private static async Task<int> WaitForAWhileAsync() {
+	private static async Task<int> PauseForAWhileAsync() {
 		Logger.Log("--async method called");
-		int result = await new WaitForAWhileAwaiterSource();
+		int result = await new PauseForAWhileAwaiterSource();
 		Logger.Log($"--async method continues after the await expression, it will return {42}");
 		return result;
 	}
 	
 	public static void Main() {
-		var asyncTask = WaitForAWhileAsync();
+		var asyncTask = PauseForAWhileAsync();
 		Logger.Log("--async method returned");
 		asyncTask.Wait();
 		Logger.Log($"--async method returned {asyncTask.Result}");
