@@ -455,23 +455,23 @@ static void async TickTockAsync() {
 ```
                                                   o
                                                   |
-												  V
+                                                  V
                               +------------------------------------------+
                               |                                          |
                               |   Console.WriteLine("Starting Clock");   |
                               |                                          |
                               +------------------------------------------+
                                                   |
-							                      v
+                                                  v
                               +------------------------------------------+
                               |                                          |
              +--------------->|           Console.Write("Tick ");        |
              |                |            wait Task.Delay(500);         |
              |                |                                          |
              |                +------------------------------------------+
-             |			                          |
+             |                                    |
              |                           Dealay Task Completed
-             |         							  |
+             |                                    |
      Delay Task Completed                         V
              |                +------------------------------------------+
              |                |                                          |
@@ -585,6 +585,8 @@ public class CustomAwaiter {
 }
 ```
 
+- O ficheiro 
+
 - As classes `Task` e `Task<TResult>` implementam um  método `GetAwaiter` que devolver um _awaiter_, que utiliza o tipo `Task` para suportar a funcionalidade requerida pelo objecto _awaiter_. Em certo sentido, podemos considerar que o objecto _awaiter_ é um adaptador. O que é preciso reter é que o objecto _awaiter_ deve ter tudo o que é necessário para determinar as continuações entre os vários estados.
 	
 - Agora que temos os blocos constituitivos para registar nas conclusões, que vão provocar as mudanças de estado na nossa máquina de estados. Podemos agora reescrever o método assíncrono `TickTockAsync` de forma semelhante aquilo que o compilador irá produzir a partir do código apresentado atrás.
@@ -635,7 +637,6 @@ public class TickTockStateMachine {
 
 - Este código deve ser auto-explicativo. O método `async` original é substituído pela criação de uma instância de uma máquina de estados que é iniciada com uma chamada ao método `MoveNext`. O método `MoveNext` é, de facto, o corpo do método assíncrono original, embora intercadado por um um bloco _switch/case_. O campo `state` é utilizado para determinar qual o código que deve ser executado pelo método `MoveNext` for chamado de novo. Quando cada peça de código atinge o ponto da operação `await` original, é necessáro orquestrar a transição para o próximo estado. Se o objecto _awaiter_ já estiver marcado como completado, a transição para o próximo estado é imediata; caso contrário, é registada uma continuação para chamar o próprio método e retorna. Qaundo o objecto _awaiter_ considera que a operação foi concluída, a continuação passada ao método `OnCompleted` é chamada e será executada a próxima peça de código que é determinada pelo valor do campo `state`. O processo repete-se até que a máquina de estados seja considerada concluída.
 
-##
 
 
 
