@@ -10,6 +10,7 @@ ___
 
 ### Série de Exercícios 3
 
+```C#
 public CommException : Exception {
 	public CommException(string message = "communication error") : base(message) {}
 }
@@ -43,7 +44,7 @@ static async Task<int[]> ComputeAsync(string[] elems, int maxRetries, Cancellati
 	-- call OperRetryAsync(elmes[.], maRetries, linkedCts);
 	...
 }
-
+```
 
 
 
