@@ -1,14 +1,14 @@
-# Aula 26 - Implementação de Sincronizadores com Interface Assíncrona
+# Aula 26 - Implementação de Sincronizadores com Interfaces Assíncrona e Síncrona
 
 ___
 
 ## Sumário
 
-- Padrão de desenho para implementar sincronizadores com interface assíncrona em .NET _Framework_ e em _Java_.
+- Padrão de desenho para implementar sincronizadores com interfaces assíncrona e síncrona em .NET _Framework_ e em _Java_.
 
 
 
-### Série de Exercícios 3
+### Série de Exercícios 3: Notas sobre o Exercício 1
 
 ```C#
 public CommException : Exception {
