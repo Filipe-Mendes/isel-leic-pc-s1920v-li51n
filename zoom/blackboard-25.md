@@ -24,7 +24,7 @@ ___
 - Na sincronização de controlo, não é possível, à partida, prever ou limitar o tempo que as _threads_ poderão ficar bloqueadas quando são utilizados sincronizadores com interface síncrona. Por isso, a alternativa é **utilizar sincronizadores com interfaces assíncronas**, onde a **espera pelas condições de sincronização se faz sem bloquear as _worker threads_**. 
 
 
-## Implementação de Sincronizadores com Interface Assíncrona
+## Implementação de Sincronizadores com Interface Assíncrona no .NET _Framework_
 
 - Na implementação se sincronizadores com interface assíncrona vamos usar o modelo _Task-based Asynchronous Pattern_ (TAP). As operações de sincronização com semântica _acquire_ retornam de imediato devolvendo uma _task_ que representa a operação em curso. Depois, o código invocante utiliza uma das técnicas da programação assíncrona - agendamento de continuações ou suspensão da execução quando se utilizam métodos assíncronos - para prosseguir o processamento após ser obtida a sincronização.
 
@@ -42,13 +42,13 @@ ___
 	
 	- O cancelamento por _timeout_ ou por via do _cancellation token_, pode ocorrer em simultâneo com a conclusão normal do pedido assíncrono ou mesmo com o cancelamento por parte da outra forma de cancelamento. Assim, antes de proceder ao cancelamento, removendo o _asynchronous request_ da fila de espera é necessário testar se o pedido já foi satisfeito ou cancelado. Na implementação de sincronizadores com base em monitor ao "estilo kernel", também podia haver uma _race_ entre a conclusão normal da operação _acquire_ e a detecção por parte da _thread_ invocante de que ocorreu uma condição de cancelamento (retorno do método `Monitor.Wait` por _timeout_ ou por interrupção). Assim, qualquer que fosse a condição de saída do método `Monitor.Wait`, era sempre testado o campo `done` do objecto _request_ para determinar se a operação tinha sido concluída normalmente e, em caso afirmativo, ignorava-se o cancelamento da operação _acquire_;
 
-	- Enquanto que na implementação de interfaces síncronas há uma _thread_ associada a cada operação _acquire_ pendente, a indicação de conclusão da operação ou o accionamento do seu cancelamento é sempre comunicada à _thread_ quando esta se encontra bloqueada numa variável condição do monitor; a própria implementação do monitor garante que o retorno do método `Monitor.Wait` já feito na posse do _lock_ do monitor, portanto podemos dizer que o processamento do cancelamento é centralizado e síncrono. Na implementação de interfaces assíncronas, não existe nenhum _thread_ associada às operações _acquire_ pendentes, pelo que os eventuais canceladores (_timer_ e _callback_ registado na instância de `CancellationToken`) executam assíncronamente no contexto de _threads_ arbitrárias e pode executar mais do que um cancelador simultaneamente e ainda em simultâneo com uma operação _realese_. Assim, será necessário adquirir a posse do _lock_ em todos os caminhos de código que vão aceder ao objecto que decreve a operação _acquire_ assíncrona.
+	- Enquanto que na implementação de interfaces síncronas há uma _thread_ associada a cada operação _acquire_ pendente, a indicação de conclusão da operação ou o accionamento do seu cancelamento é sempre comunicada à _thread_ quando esta se encontra bloqueada numa variável condição do monitor; a própria implementação do monitor garante que o retorno do método `Monitor.Wait` já feito na posse do _lock_ do monitor, portanto podemos dizer que o processamento do cancelamento é centralizado e síncrono. Na implementação de interfaces assíncronas, não existe nenhum _thread_ bloqueda por cada operação _acquire_ pendente, pelo que os eventuais canceladores (_timer_ e _callback_ registado na instância de `CancellationToken`) executam assíncronamente no contexto de _threads_ arbitrárias e pode executar mais do que um cancelador simultaneamente e ainda em simultâneo com uma operação _realese_. Assim, será necessário adquirir a posse do _lock_ em todos os caminhos de código que vão aceder ao objecto que decreve a operação _acquire_ assíncrona.
 	
 	- Um aspecto importante a ter em consideração, na implementação destes sincronizadores, é saber em que _thread_ são executados os _callbacks_ dos canceladores. Este aspecto é importante para se determinar que garantias de exclusão nos são dadas pelo _lock_ ou mesmo determinar se é possível ocorrerem situações de _deadlock_.
 	
 	- No .NET _Framework_, sabemos que o _callback_ associado a uma instância do tipo `System.Threading.Timer` executa numa _worker thread_ do _thread pool_. Assim, mesmo que o _timer_ seja criado por uma _thread_ que tem a posse do _lock_ (como veremos adiante é o caso), o _lock_ garante que o _callback_ bloqueia a _worker thread_ enquanto o _lock_ não for libertado por parte da _thread_ que lançou o _timer_. Assim, existe a garantia de que o estado partilhado mutável fixado antes de libertar o _lock_ é visto pela _thread_ que executa o _callback_ do _timer_ depois desta adqurir a posse do _lock_. Assim, existe a garantia de visbilidade e atomicidade no acesso ao estado partilhado mutável e não existe a possibilidade de ocorrerem situações de _deadlock_.
 	
-	- Relativamente aos _callbacks_ registados em instâncias do tipo `CancellationToken`, sabemos que o .NET _Framework_ os executa: (a) quando o cancelamento já foi accionado, o _callback_ executa sincronamente na _thread_ que invoca o método `CancellationToken.Register`; (b) se o cancelamento ainda não foi accionado, o _callback_ executará mais tarde pela _thread_ que invocar o método `CancellationTokenSource.Cancel`. Esta execução síncrona tem que ser analisada com cuidado, dado que os _locks_ que vamos utilizar no .NET _Framework_ e em _Java_ suportam a acquisição recursiva por parte da _thread_ que já detém a posse do _lock_. Assim, sendo o _cancellation handler_ registado na posse do _lock_ quando a execução é síncrona, a acquisição do _lock_ no início do _cancellation handler_ não bloqueia a _thread_ invocante e, se bloqueasse, ocorreria _deadlock_. A solução para resolver este tipo de problema, passa por: (a) fazer o registo do _cancellation handler_ como operação terminal da secção crítica, imediatamente antes da libertação do _lock_, e; (b) não haver nenhum código no _cancellation handler_ que dependa de alterações ao estado partilhado mutável que sejam feitas após o retorno da chamada ao método `CancellationToken.Register`. Pelo facto do _cancellation handler_ executar na mesma _thread_ que alterou o estado partilhado mutável utilizado pelo _cancellation handler_, existem totais garantias de visibilidade dessas alterações. No .NET _Framework_ existem condições para aplicar esta abordagem ao registo e processamento de _cancellation handlers_, sendo posssível libertar imediatamente todos os recursos alocados em caso de cancelamente. Adiante, quando fizermos a análise do código do `SemaphoreAsync` explicaremos os detalhes da implementação.
+	- Relativamente aos _callbacks_ registados em instâncias do tipo `CancellationToken`, sabemos que o .NET _Framework_ os executa: (i) se o cancelamento ainda não foi accionado, o _callback_ executará, mais tarde, na _thread_ que invocar o método `CancellationTokenSource.Cancel`, ou; (ii) quando o cancelamento já foi accionado, o _callback_ executa sincronamente na _thread_ que invoca o método `CancellationToken.Register`. Esta execução síncrona tem que ser analisada com cuidado, dado que os _locks_ que vamos utilizar no .NET _Framework_ e em _Java_ suportam a acquisição recursiva por parte da _thread_ que já detém a posse do _lock_. Na discussão da implementação do semáforo que apresentamos adiante.
 	
 - Vamos explicar a implementação segundo o padrão de desenho com base no ficheiro [SemaphoreAsync.cs]() que vamos analisar por excertos.
 
@@ -56,13 +56,14 @@ ___
 
 ```C#
 public class SemaphoreAsync {
-	// The type used to represent each asynchronous acquire request
+			
+	// The type used to hold each async acquire request
 	private class AsyncAcquire: TaskCompletionSource<bool> {
-		internal readonly int acquires;
-		internal readonly CancellationToken cToken;
-		internal CancellationTokenRegistration cTokenRegistration;
+		internal readonly int acquires;					// the number of requested permits
+		internal readonly CancellationToken cToken;		// cancellation token
+		internal CancellationTokenRegistration cTokenRegistration;	// used to dispose the cancellation handler 
 		internal Timer timer;
-		internal bool done;		// true when the async request is completed or cancelled
+		internal bool done;		// true when the async request is completed or canceled
 		
 		internal AsyncAcquire(int acquires, CancellationToken cToken) : base() {
 			this.acquires = acquires;
@@ -70,51 +71,52 @@ public class SemaphoreAsync {
 		}
 
 		/**
-		 * Disposes the resources associated with this async acquire.
+		 * Disposes resources associated with this async acquire.
 		 *
-		 * Note: when this method is called we are sure that the fields "timer"
-		 *       and "cTokenRegistration" are correctly affected
+		 * Note: when this method is called we are sure that the field "timer" is correctly affected,
+		 *		 but we are not sure if the "cTokenRegistration" field is.
+		 * 		 However, this does not cause any damage, because when this method is called by
+		 *	     cancellation handler this field is not used, as the resources mobilized to register
+		 *		 the handler are released after its invocation.
 		 */
 		internal void Dispose(bool canceling = false) {
-			// The CancellationTokenRegistration is disposed off after the
-			// cancellation handler is called.
 			if (!canceling && cToken.CanBeCanceled)
 				cTokenRegistration.Dispose();
 			timer?.Dispose();
 		}
 	}
-	
+
 	// The lock - we do not use the monitor functionality
 	private readonly object theLock = new object();
-
-	// Available and maximum number of permits	
+	
+	// available and maximum number of permits	
 	private int permits;
 	private readonly int maxPermits;
 
-	// The queue of pending asynchronous requests
+	// The queue of pending asynchronous requests.
 	private readonly LinkedList<AsyncAcquire> asyncAcquires;
 	
 ```
 
-- O tipo `AsyncAcquire` tem um campo para armazenar o número de autorizações solicitadas (`acquires`), um campo para armazenar o _cancellation token_ (´cToken´), um campo para armazenar a instância do tipo `Timer` (`timer`) que está definida no caso de ter sido especificado um _timeout_ e, por último, um campo que indica se o pedido assíncrono já foi completado ou cancelado (`done`). As instâncias deste tipo são inseridas numa _asynchronoues request queue_ e são acedidas na posse do _lock_ global. 
+- O tipo `AsyncAcquire` tem um campo para armazenar o número de autorizações solicitadas (`acquires`), um campo para armazenar o _cancellation token_ (´cToken´), um campo que armazena uma instância do tipo `Timer` quando é especificado um _timeout_ e, por último, um campo que indica se o pedido assíncrono já foi completado ou cancelado (`done`). As instâncias deste tipo são inseridas numa _asynchronoues request queue_ (`asyncAcquires`) e são acedidas na posse do _lock_ global. 
 
-- O acesso ao estado partilhado mutável é protegido pelo _lock_ do monitor implícito associado ao objecto `theLock`. O número de autorizações disponíveis está armazenado no campo `permits` e o número máximo de autorizações sob custódia do semaforo está armazenado no campo imutável `maxPermits`. Além disso, o campo `asyncAcquires` contém os pedidos de _acquire_ assíncronos pendentes armazenados por ordem de chegada.
+- O acesso ao estado partilhado mutável é protegido pelo _lock_ do monitor implícito associado ao objecto `theLock`. O número de autorizações disponíveis está armazenado no campo `permits` e o número máximo de autorizações sob custódia do semaforo está armazenado no campo imutável `maxPermits`.
 
-- A seguir, declaramos os _delegates_ usados para armazenar os _cancellation handlers_ e duas instâncias do tipo `Task<bool>` já concluídas para devolver os resultado `true` e `false`. 
+- A seguir, declaramos os _delegates_ usados para armazenar os _cancellation handlers_ e duas instâncias do tipo `Task<bool>` já concluídas para devolver os resultados `true` e `false`. 
 
 ```C#
 	/**
-	 * Delegates used as cancellation handlers for asynchrounous requests 
+	 *  Completed tasks use to return constant results from the AcquireAsync method
 	 */
-	private readonly Action<object> cancellationHandler;
-	private readonly TimerCallback timeoutHandler;
+	private static readonly Task<bool> trueTask = Task.FromResult<bool>(true);
+	private static readonly Task<bool> falseTask = Task.FromResult<bool>(false);
+	private static readonly Task<bool> argExceptionTask = Task.FromException<bool>(new ArgumentException("acquires"));
 	
 	/**
 	 *  Completed tasks use to return true and false results
 	 */
 	private static readonly Task<bool> trueTask = Task.FromResult<bool>(true);
 	private static readonly Task<bool> falseTask = Task.FromResult<bool>(false);
-    
 ```
 
 - O código do construtor do semáforo é o seguinte:
@@ -143,6 +145,315 @@ public class SemaphoreAsync {
 	}
 ```
 
-- Para além da validação dos argumentos o construtor inicia os _delegates_ que implementam os _cancellation handlers_ para _timeout_ e cancelamento explícito. Estes _delegates_ aceitam como argumento uma instância do tipo `LinkedLisNode<AsyncAcquire>` e invocam o mesmo método `AcquireCancellatioHandler` passando para além do nó da lista um _boolean_ que indica se foi accionado o cancelamento directo ou cancelamento por _timeout_. A seguir, armazena o número máximo de autorizações num campo imutável (`maxPermits`). Por último inicializa a fila de pedidos de _acquire_ assícronos pendentes (`asyncAcquire`) e o número inicial de autorizações disponíveis (`permits`).
+- Para além da validação dos argumentos, o construtor inicia os _delegates_ que implementam os _cancellation handlers_ para _timeout_ e cancelamento explícito. Estes _delegates_ aceitam como argumento uma instância do tipo `LinkedLisNode<AsyncAcquire>` e invocam o mesmo método `AcquireCancellatioHandler` passando para além da referência para nó da lista um _boolean_ que indica se foi accionado o cancelamento directo ou o cancelamento por _timeout_. A seguir, armazena o número máximo de autorizações num campo imutável (`maxPermits`). Por último inicializa a fila de pedidos de _acquire_ assícronos pendentes (`asyncAcquire`) e o número inicial de autorizações disponíveis (`permits`).
 	
+- O método auxiliar `SatisfyPendingAsyncAcquires` processa a fila dos _async acquires_ pendentes, e satisfaz todos os _acquires_ que podem ser satisfeito com o número de autorizações sob custódia do semáforo, devolvendo uma lista com os _async acquires_ satisfeitos.
+
+```C#
+	...
+	/**
+	 * Returns the list of all pending async acquires that can be satisfied with
+	 * the number of permits currently owned by the semaphore.
+	 *
+	 * Note: This method is called when the current thread owns the lock.
+	 */
+	private List<AsyncAcquire> SatisfyPendingAsyncAcquires() {
+		List<AsyncAcquire> satisfied = null;
+		while (asyncAcquires.Count > 0) {
+			AsyncAcquire acquire = asyncAcquires.First.Value;
+			// Check if available permits allow satisfy this request
+			if (acquire.acquires > permits)
+				break;
+			// Remove the request from the queue
+			asyncAcquires.RemoveFirst();
+			
+			// Update permits and mark acquire as done
+			permits -= acquire.acquires;
+			acquire.done = true;
+			if (satisfied == null)
+					satisfied = new List<AsyncAcquire>(1);
+			satisfied.Add(acquire);
+		}
+		return satisfied;
+	}
+```
+
+- Este método é chamado quando a _thread_ corrente tem a posse do _lock_. Um aspecto importante a reter neste método é o facto do mesmo não completar de imediato as _tasks_ associados ao _async acquires_ que são satisfeitos, devolvendo antes uma lista com esses _async acquires_. Isto é necessário porque **nunca se devem concluir _tasks_ na posse de _locks_**, dado que as _tasks_ podem ter agendadas continuações para executar sincromamente (o que acontece quando é especifcada a opção `TaskContinuationOptions.ExecuteSynchronously` no agendamento da continuação), **teremos código desconhecido a executar numa _thread_ que tem a posse do _lock_ que estamos a usar para proteger o estado partilhado mutável do nosso semáforo, o que é sempre uma má prática**. Por exemplo, se o método `SatisfyPendingAsyncAcquires` completasse às _tasks_ no corpo do ciclo assim que staisfaz cada _async acquire_, se alguma continuação executada sincronamente invocasse os métodos `AcquireAsync` ou `Release` sobre o mesmo semáforo, essas operações seriam executadas com o semáforo num estado indeterminado, uma vez que o _lock_, por admitir acquisições recursivas, não bloqueria a _thread_ que executava a continuação; ainda, se o _lock_ não admitisse aquisições recursivas, ocorreria uma situação de _deadlock_.
+
+- Neste método não é necessário testar o campo `AsyncAcquire.done`, porque o _lock_ garante que todos os _async acquires_ que estão em fila de espera ainda não podem ter sido completados ou cancelados. 
+
+- O método auxiliar `CompleteSatisfiedAsyncAcquires` completa as _tasks_ associadas a cada um dos _async acquires_ da lista passada como argumento. Pelas razões que explicámos anteriormente, este método executa quando a _thread_ invocante **não tem a posse do _lock_**.
+
+```C#
+	/**
+	 * Complete the tasks associated to the satisfied async acquire requests.
+	 *
+	 *  Note: This method is called when the current thread **does not own the lock**.
+	 */
+	private void CompleteSatisfiedAsyncAcquires(List<AsyncAcquire> toComplete) {
+		if (toComplete != null) {
+			foreach (AsyncAcquire acquire in toComplete) {
+				// Dispose the resources associated with the async acquirer and
+				// complete its task with success.
+				acquire.Dispose();
+				acquire.SetResult(true);	// complete the associated request's task
+			}
+		}
+	}
+```
+
+- O método `AcquireAsync` permite às _threads_ solictarem autorizações ao semáforo usando uma interface assíncrona segundo o modelo _Task-based Asynchrounous Pattern_ (TAP).
+
+```C#
+	/**
+	 * Acquires one or more permits asynchronously enabling, optionally,
+	 * a timeout and/or cancellation.
+	*/
+	public Task<bool> AcquireAsync(int acquires = 1, int timeout = Timeout.Infinite,
+								   CancellationToken cToken = default(CancellationToken)) {
+		// Validate the argument "acquires"
+		if (acquires > maxPermits)
+			return argExceptionTask;			 
+	
+		lock(theLock) {
+			if (asyncAcquires.Count == 0 && permits >= acquires) {
+				permits -= acquires;
+				return trueTask;
+			}
+            // If the acquire was specified as immediate, return failure
+			if (timeout == 0)
+				return falseTask;
+			
+			// If the cancellation was already requested return a task in the Canceled state
+			if (cToken.IsCancellationRequested)
+				return Task.FromCanceled<bool>(cToken);
+						
+			// Create a request node and insert it in requests queue
+			AsyncAcquire acquire = new AsyncAcquire(acquires, cToken);
+			LinkedListNode<AsyncAcquire> acquireNode = asyncAcquires.AddLast(acquire);
+
+			/**
+			 * Activate the specified cancelers when owning the lock.
+			 */
+			
+			/**
+			 * Since the timeout handler, that runs on a thread pool's worker thread,
+			 * that acquires the lock before access the fields "acquirer.timer" and
+			 * "acquirer.cTokenRegistration" these assignements will be visible to the
+			 * timeout handler.
+			 */
+			if (timeout != Timeout.Infinite)
+				acquire.timer = new Timer(timeoutHandler, acquireNode, timeout, Timeout.Infinite);
+			
+			/**
+			 * If the cancellation token is already in the canceled state, the cancellation
+			 * handler will run immediately and synchronously, which *causes no damage* because
+			 * this processing is terminal and the implicit locks can be acquired recursively.
+			 */
+			if (cToken.CanBeCanceled)
+            	acquire.cTokenRegistration = cToken.Register(cancellationHandler, acquireNode);
+
+			// Return the Task<bool> that represents the async acquire
+			return acquire.Task;
+		}
+    }
+
+```
+
+- Este método começa por aquirir a posse do _lock_. Depois, se a fila de _async acquires_ estiver vazia e o semáforo tiver o número de autorizações suficientes, é actualizado o valor de `permits` e devolvida uma _task_ já concluída com o valor `true`, o que corresponde a uma conclusão síncrona. No caso de haver _async acquires_ em fila de espera ou se não houverem autorizações suficientes, o pedido pode ser cancelado de imediato ao vai ficar pendente.
+
+- É boa prática testar de imediato se foi solicitado um cancelamento imediato (_timeout_ zero, ou um _cancellation token_ já cancelado) antes de criar o objecto que descreve o _async aquire_ e que será inserido na fila de espera.
+
+- A activação dos canceladores, como já referimos, anteriormente pode ser delicada, pois os respectivos _callbacks_ pode ser executados antes do retorno do método que regista o _callback_ responsável pelo cancelamento. É necessário garantir que os campos `AsyncAcquire.timer` e `AsyncAcquire.cTokenRegistration`, que são utilizados nos _cancellation handlers_, já foram afectados. Para ver se temos essa garantia temos que ter em consideração em que _threads_ e em que condições são executados os _cancellation handlers_.
+
+- O _callback_ associado ao _timer_ executa sempre numa _worker thread_ do _thread pool_, pelo que a acquisição do _lock_ por parte do _timeout cancellation handler_, garante que a _worker thread_ será bloqueada enquando o _lock_ estiver na posse da _thread_ que está a executar o método `AcquireAsync`; esta _thread_ só liberta o _lock_ após a afectação dos campos `AsyncAcquire.timer` e `AsyncAcquire.cTokenRegistration`. Assim, quanto ao cancelamento por _timeout_ temos a garantia de que o estado do semáforo estará coerente após a aquisição do _lock_ pelo _timeout cancellation handler_.
+
+- O _callback_ associado ao _cancellation token_ pode ser executado numa de duas formas: (i) se o _cancellation token_ não estiver no estado cancelado quando é invocada o método `CancellationToken.Register` - situação mais provável - , o _cancellation handler_ é executado pela _thread_ que, mais tarde, invocar o método `CancellationTokenSource.Cancel` para accionar o cancelamento, ou; (ii) se o _cancellation token_ já estiver no estado cancelado quando é invocado o método `CancellationToken.Register` - situação pouco frequente, mas possível -, o _cancellation handler_ e executado sincronamente na _thread_ que chama aquele método. No caso do _cancellation handler_ ser executado por uma _thread_ diferente daquela que fez o respectivo registo, não existe qualquer problema - como acontece no caso do _timeout handler_ - pois o _lock_ garante a visibilidade e a atomicidade no acesso ao estado partilhado mutável. Na situação em que o _cancellation handler_ é executado sincronamente, o _lock_ garante a atomicidade, sendo a visibilidade determinada pela garantia do respeito pela ordem de programa nas acções realizadas pela mesma _thread_. Por isso, sabemos que a instância do tipo `AsyncAcquire` já se encontra inserido na fila de espera, que o campo `AsyncAcquire.timer` está correctamente afectado, mas também sabemos que ainda não foi executada a afectação do campo `AsyncAcquire.cTokenRegistration`. O _cancellation handler_ vai remover o objecto `AsyncAcquire` da fila de espera e cancelar o _timer_ se tiver sido activado um _timeout_ (usando o campo `AsyncAcquire.timer`), o que não coloca qualquer problema. Considerando que os recursos reservados no registo de um _cancellation handler_ são libertados automaticamente depois de ter sido invocado o respectivo _callback_, não é necessário que o _cancellatiom handler_ utilize a informação armazenada no campo `AsynRequire.cTokenRegistration`. Assim, temos, nas duas situações possíveis, a garantia que o _cancellation handler_ executa com os requisitos de visibilidade e atomicidade no acesso ao estado partilhado mutável do semáforo.
+
+- Por último o método `AcquireAsync` devolve uma instância do tipo `Task<bool>` que representa o _async acquire_ em curso.
+
+- O método `Release` devolve à custódia do semáforo o número de autorizações especificas.
+
+```C#
+	/**
+	 * Releases the specified number of permits
+	 */
+	public void Release(int releases = 1) {
+		// A list to hold temporarily satisfied asynchronous acquires 
+		List<AsyncAcquire> satisfied = null;
+		lock(theLock) {
+			if (permits + releases > maxPermits)
+				throw new InvalidOperationException("Exceeded the maximum number of permits");	
+			permits += releases;
+			satisfied = SatisfyPendingAsyncAcquires();
+		}
+		// Complete satisfied requests without owning the lock
+		if (satisfied != null)
+			CompleteSatisfiedAsyncAcquires(satisfied);
+	}
+```
+
+- Neste método temos a preocupação, já referida atrás, de não completar as _tasks_ que representam as operaões assíncronas quando a _thread_ tem a posse do _lock_, de modo a evitar **surpresas** no caso de ocorrer a execução síncrona de continuações. Assim o método `SatisfyPendingAsyncAcquire` processa os _async aquires_ pendentes considerando o novo valor do campo `permits` e devolve uma lista com as instâncias do tipo `AsyncAcquire` que foram satisfeitos. Depois de libertar o _lock_ é chamado o método `CompleteSatisfiedAsyncAcquires` para completar as _tasks_ em apreço.
+
+- O método `AcquireCancellationHandler` tenta cancelar o _async acquire_ cuja instância de `LinkedListNode<AsyncAcquire>` é passado como parâmetro. Este nétodo recebe ainda um segundo parâmtro que indica se o cancelamento foi accionadado através do _cancellation token_ ou por _timeout_.
+
+```C#
+	/**
+	 * Try to cancel an async acquire request
+	 */
+	private void AcquireCancellationHandler(object _acquireNode, bool canceling) {
+		LinkedListNode<AsyncAcquire> acquireNode = (LinkedListNode<AsyncAcquire>)_acquireNode;
+		AsyncAcquire acquire = acquireNode.Value;
+		bool complete = false;
+		List<AsyncAcquire> satisfied = null;
+		
+		// To access shared mutable state we must acquire the lock
+		lock(theLock) {
+			
+			/**
+			 * Here, the async request can be already satisfied or cancelled.
+			 */ 
+			if (!acquire.done) {
+				// Remove the async acquire request from queue and mark it as done.
+				asyncAcquires.Remove(acquireNode);
+				complete = acquire.done = true;
+				
+				// If after removing the async acquire is possible to satisfy any
+				// pending async acquire(s) do it 
+				if (asyncAcquires.Count > 0 && permits >= asyncAcquires.First.Value.acquires)
+					satisfied = SatisfyPendingAsyncAcquires();
+			}
+		}
+
+		// If we cancelled the async acquire, release the resources associated with it,
+		// and complete the underlying task.
+		if (complete) {
+			// Complete any satisfied async acquires
+			if (satisfied != null)
+				CompleteSatisfiedAsyncAcquires(satisfied);
+			
+			// Dispose the resources associated with the cancelled async acquire
+			acquire.Dispose(canceling);
+			
+			// Complete the TaskCompletionSource to RanToCompletion with false (timeout)
+			// or Canceled final state (cancellation).
+			if (canceling)
+            	acquire.SetCanceled();		// cancelled
+			else
+				acquire.SetResult(false);	// timeout
+        }
+	}
+```
+		
+- Depois de adquirir a posse do _lock_, este método começa por testar se o _async acquire_ já foi completado ou cancelado (o campo `AsyncAcquire.done` é `true`. Este método, que é invocado assíncronamente relativamente aos metodos `AcquireAsync`, `Release` ou ao outro _cancellation handler_, pode encontrar o respectivo _async acquire_ já satisfeito ou cancelado, situação em que não há nada para fazer.
+
+- Se o _async acquire_ ainda estiver activo, remove-o da fila de espera e marca-o como completado. Face à semântica das operações _acquire_ e _release_ desta implementação de semáforo, é possível que o cancelamente do _async acquire_ que se encontra à cabeça da fila de espera, crie condições para satisfazer _async acquire_ que se encontra a seguir na fila de espera. Assim, este método testa se existem _async acquires_ em fila de espera e em caso afirmativo se o número de autorizações sob custódia do semáforo e suficiente para satisfazer o _async acquire_ que se encontra, agora, à cabeça fila; em caso afirmativo, é invocado o método `SatisfyPendingAsyncAcquires` para completar todos os _async acquires_ que podem ser satisfeitos como o número de autorizações disponíveis.
+
+- Depois de libertado o _lock_, se o cancelamento teve sucesso, completa-se o respectivo processamento, nomedamente: completa-se as _tasks_ do _async acquires_ eventualmente satisfeitos; invoca-se o método `AsyncAcquire.Dispose` para libertar os recursos associados aos _cancellation handlers_ e, finalmente, completa-se a _task_ subjacente no estado `RanToCompletion` com o resultado `false` no caso do cancelamento ter sido por _timeout_ ou completa-se a _task_ no estado `Canceled` se o cancelamento foi feito por via do _cancellation token_.
+
+- Para terminar a implementação do semáforo com interfaces assíncrona e síncrona, falta disutir a implementaçao da interface síncrona com base na interface assíncrona, o que vamos fazer a seguir.
+
+- Primeiro vamos analisar o método auxiliar `TryCancelAcquireAsyncByTask` que é responsável por tentar cancelar um _async acquire_ a partir da respectiva _task_, cujo código se apresenta a seguir.
+
+```C#
+	/**
+	 * Try to cancel an asynchronous acquire request identified by its task.
+	 *
+	 * Note: This method is needed to implement the synchronous interface.
+	 */
+	private bool TryCancelAcquireAsyncByTask(Task<bool> acquireTask) {
+		AsyncAcquire acquire = null;
+		List<AsyncAcquire> satisfied = null;
+		// To access the shared mutable state we must acquire the lock
+		lock(theLock) {
+			foreach (AsyncAcquire _acquire in asyncAcquires) {
+				if (_acquire.Task == acquireTask) {
+					acquire = _acquire;
+					asyncAcquires.Remove(_acquire);
+					acquire.done = true;
+					if (asyncAcquires.Count > 0 && permits >= asyncAcquires.First.Value.acquires)
+						satisfied = SatisfyPendingAsyncAcquires();
+					break;
+				}
+			}
+		}
+		// If we canceled the async acquire, process the cancellation
+		if (acquire != null) {
+			// After release the lock, complete any satisfied acquires
+			if (satisfied != null)
+				CompleteSatisfiedAsyncAcquires(satisfied);
+			
+			// Dispose the resources associated with this async acquire and complete
+			// its task to the Canceled state.
+			acquire.Dispose();
+			acquire.SetCanceled();
+			return true;
+		}
+		return false;
+	}
+```
+
+- Este método começa por adquirir o _lock_ e depois faz uma pesquisa sequencial da fila de espera para ver se existe algum _async acquire_ cuja _task_ seja a que foi passada como argumento. Em caso afirmativo, realiza o processamento normal de cancelamento já descrito no método anterior e devolve `true`; se o _async acquire_ já tiver sido completado ou cancelado, o método não faz nada e devolve `false`.
+
+- O método `Acquire` permite adquirir autorizações do semáforo com interface síncrona e cujo código é o seguinte:
+
+```C#
+    /**
+	 * Acquire one or multiple permits synchronously, enabling, optionally,
+	 * a timeout and/or cancellation.
+	 */
+	public bool Acquire(int acquires = 1, int timeout = Timeout.Infinite,
+						CancellationToken cToken = default(CancellationToken)) {
+		Task<bool> acquireTask = AcquireAsync(acquires, timeout, cToken); 
+		try {
+			return acquireTask.Result;
+		} catch (ThreadInterruptedException) {
+			/**
+			 * The acquirer thread was interrupted while waiting for task completion!
+			 * Try to cancel the async acquire operation.
+			 * Whether the cancellation was successful, throw interrupted exception.
+			 */
+			if (TryCancelAcquireAsyncByTask(acquireTask))
+				throw;		// throw interrupted exception
+			
+			/**
+			 * Here we known that the async acquire was already completed or cancelled.
+			 * So we must return the underlying result, ignoring possible interrupts,
+			 * while wait for task completion.
+			 */
+			try {
+				do {
+					try {
+						return acquireTask.Result;
+					} catch (ThreadInterruptedException) {
+						// ignore interrupts while waiting fro task's result
+					} catch (AggregateException ae) {
+                		throw ae.InnerException;
+					}
+				} while (true);
+			} finally {
+				// Anyway re-assert first interrupt on the current thead.
+				Thread.CurrentThread.Interrupt();
+			}
+		} catch (AggregateException ae) {
+			// The acquire thrown an exception, propagate it synchronously
+			throw ae.InnerException;
+		}
+	}
+
+```
+
+- Este método começa por invocar a operação _acquire_ assincronamente invocando o método `AcquireAsync` obtendo a respectiva _task_. A seguir é invocada a propriedade `Task<bool>.Result` para esperar que a operação assíncrona termine e obter o respectivo resultado que este método deve devolver.
+	
+- A maior parte do código deste método deve-se ao facto de ser possível a _thread_ corrente ser interrompoida enquanto está bloqueada a aguardar a conclusão da operação assíncrona. Por isso o acesso à propriedade `Task<bool>.Result` está dentro de um bloco _try_ que especifia _exception handlers_ para as excepções `ThreadInterruptedExecption` e `AggregateException`.
+
+- Se o acesso à propriedade `Task<bool>.Result` lançar a excepção `AggregateException´, isso indica que foi especificada a intenção de adquirir um número de autorizações superior ao núnmero máximo de autorizações especificado aquando a criação do semáforo, pelo que o método `Acquire` lança a excepção definida pela propriedade `AggregateException.InnerException`, que neste caso será uma instância do tipo `ArgumentException`.
+
+- Se a _thread_ que invoca o método `Acquire` for interrompida enquando aguarda a conclusão da operação assíncrona, o acesso à propriedade `Task<bool>.Result` lança a excepção `ThreadInterruptedException`. Como resposta, é invocado o método `TryCancelAcquireAsyncByTask` para tentar cancelar a operação de _acquire_ assíncrona. Se a operação assíncrona tiver sido cancelada, o método `Acquire` termina, lançando `ThreadInterruptedException`. No caso contrário, é necessário aguardar incondicionalmente o resultado da operação _acquire_ assíncrona que pode ser qualquer um dos resultados possíveis; antes de devolver esse resultado a _thread_ que chamou o método `Acquire` deve garantir que a interrupção não se perde, por isso é invocado o método `Thread.Interrupt` sobre  `Thread.CurrentThread`.
  
+## Implementação de Sincronizadores com Interface Assíncrona em _Java_
+ 
+ - Xxx
+ 
+ 
+____

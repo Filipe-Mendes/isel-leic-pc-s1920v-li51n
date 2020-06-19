@@ -83,10 +83,11 @@ public class SemaphoreAsync {
 	private readonly TimerCallback timeoutHandler;
 	
 	/**
-	 *  Completed tasks use to return true and false results
+	 *  Completed tasks use to return constant results from the AcquireAsync method
 	 */
 	private static readonly Task<bool> trueTask = Task.FromResult<bool>(true);
 	private static readonly Task<bool> falseTask = Task.FromResult<bool>(false);
+	private static readonly Task<bool> argExceptionTask = Task.FromException<bool>(new ArgumentException("acquires"));
     
 	/**
 	 * Constructor
@@ -116,10 +117,10 @@ public class SemaphoreAsync {
 
 	/**
 	 * Returns the list of all pending async acquires that can be satisfied with
-	 * the current number of permits owned by the semaphore.
+	 * the number of permits currently owned by the semaphore.
 	 *
-	 * Note: Tis method is called when the current thread owns the lock.
-	*/
+	 * Note: This method is called when the current thread owns the lock.
+	 */
 	private List<AsyncAcquire> SatisfyPendingAsyncAcquires() {
 		List<AsyncAcquire> satisfied = null;
 		while (asyncAcquires.Count > 0) {
@@ -141,9 +142,9 @@ public class SemaphoreAsync {
 	}
 
 	/**
-	 * Complete the tasks associated to the satisfied requests.
+	 * Complete the tasks associated to the satisfied async acquire requests.
 	 *
-	 *  Note: This method is called when calling thread **does not own the lock**.
+	 *  Note: This method is called when the current thread **does not own the lock**.
 	 */
 	private void CompleteSatisfiedAsyncAcquires(List<AsyncAcquire> toComplete) {
 		if (toComplete != null) {
@@ -193,8 +194,8 @@ public class SemaphoreAsync {
 			// Dispose the resources associated with the cancelled async acquire
 			acquire.Dispose(canceling);
 			
-			// Complete the TaskCompletionSource to RanToCompletion (timeout)
-			// or Canceled final state.
+			// Complete the TaskCompletionSource to RanToCompletion with false (timeout)
+			// or Canceled final state (cancellation).
 			if (canceling)
             	acquire.SetCanceled();		// cancelled
 			else
@@ -212,12 +213,15 @@ public class SemaphoreAsync {
 	*/
 	public Task<bool> AcquireAsync(int acquires = 1, int timeout = Timeout.Infinite,
 								   CancellationToken cToken = default(CancellationToken)) {
+		// Validate the argument "acquires"
+		if (acquires > maxPermits)
+			return argExceptionTask;			 
 		lock(theLock) {
 			if (asyncAcquires.Count == 0 && permits >= acquires) {
 				permits -= acquires;
 				return trueTask;
 			}
-            // if the acquire was specified as immediate, return failure
+            // If the acquire was specified as immediate, return failure
 			if (timeout == 0)
 				return falseTask;
 			
@@ -286,11 +290,11 @@ public class SemaphoreAsync {
 	 */
 
 	/**
-	 * Try to cancel an asynchronous request identified by its task.
+	 * Try to cancel an asynchronous acquire request identified by its task.
 	 *
 	 * Note: This method is needed to implement the synchronous interface.
 	 */
-	private bool CancelAcquireByTask(Task<bool> acquireTask) {
+	private bool TryCancelAcquireAsyncByTask(Task<bool> acquireTask) {
 		AsyncAcquire acquire = null;
 		List<AsyncAcquire> satisfied = null;
 		// To access the shared mutable state we must acquire the lock
@@ -306,7 +310,6 @@ public class SemaphoreAsync {
 				}
 			}
 		}
-
 		// If we canceled the async acquire, process the cancellation
 		if (acquire != null) {
 			// After release the lock, complete any satisfied acquires
@@ -337,7 +340,7 @@ public class SemaphoreAsync {
 			 * Try to cancel the async acquire operation.
 			 * Whether the cancellation was successful, throw interrupted exception.
 			 */
-			if (CancelAcquireByTask(acquireTask))
+			if (TryCancelAcquireAsyncByTask(acquireTask))
 				throw;		// throw interrupted exception
 			
 			/**
