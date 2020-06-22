@@ -1,4 +1,4 @@
-# Aula 25 - Sincronização em Programação Assíncrona/Sincronizadores com Interface Assíncrona (I)
+# Aula 25 - Sincronização em Programação Assíncrona e Sincronizadores com Interface Assíncrona (I)
 
 ___
 
@@ -53,6 +53,8 @@ ___
 ### Implementação de um Semáforo com Interface Assíncrona
 	
 - Neste ponto, vamos explicar a implementação segundo este padrão de desenho com base no conteúdo do ficheiro [SemaphoreAsync.cs](https://github.com/carlos-martins/isel-leic-pc-s1920v-li51n/blob/master/src/synchs-async/SemaphoreAsync.cs) que vamos analisar a seguir por excertos.
+
+- XXX
 
 - Começamos com o início da definição do tipo `SemaphoreAsync`, a definição do tipo de dados que armazena cada _asynchronous request_, assim como os outros elementos do estado partilhado.
 
