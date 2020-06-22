@@ -17,20 +17,16 @@ ___
 
 - No ficheiro [server.cs](https://github.com/carlos-martins/isel-leic-pc-s1920v-li51n/blob/master/src/tcp/echo-raw/server/server.cs) consta uma implementação de um servidor de eco (usando _bytes_ na comunicação) escalável que a seguir iremos detalhar os aspectos relevantes da sua implementação (TODO).
 
-#### Servidor TCP 
-## Implementação
+- No ficheiro [client.cs](https://github.com/carlos-martins/isel-leic-pc-s1920v-li51n/blob/master/src/tcp/echo-raw/client/client.cs) consta uma implementação de um servidor de eco (usando _bytes_ na comunicação) escalável que a seguir iremos detalhar os aspectos relevantes da sua implementação (TODO).
 
-- Nesta aula vamos apresentar 
+### Implementação de um Servidor TCP com Comunicação via Pedido/Resposta em JSON
 
-###_Sockets_ TCP:
-
-TcpListener
-
-TcpClient
-
+- No directório [src/tcp/echo_json](https://github.com/carlos-martins/isel-leic-pc-s1920v-li51n/tree/master/src/tcp/echo-json) encontra-se a implementação de um servidor TCP de eco e do respectivo cliente com comunicação via JSON, como é solicitada na Série de Exercícios 3. Estas implementações usam o _package NuGet_ `Newtonsoft.Json`.
+ 
 
 ## `TransferQueueAsync`
 
+- Na Série de Exercícios 3 solicita-se a implementação de um servidor TCP que exponha remotamente implementações do sincronizador _transfer queue_ com acesso remoto. O tipo `TransferQueueAsync` deverá seguir o padrão de desenho descrito no [ficheiro] (https://github.com/carlos-martins/isel-leic-pc-s1920v-li51n/blob/master/zoom/blackboard-25.md). Para uniformizar as resoluções, deixamos aqui uma sugestão pata a definição dos tipos de objecto _asynchronous request_ e das filas de espera a utilizar.
 
 ```C#
 class TransferQueueAsync<T> where T: class {
@@ -73,8 +69,6 @@ class TransferQueueAsync<T> where T: class {
 }
 
 ```
-
-
 
 ___
 
