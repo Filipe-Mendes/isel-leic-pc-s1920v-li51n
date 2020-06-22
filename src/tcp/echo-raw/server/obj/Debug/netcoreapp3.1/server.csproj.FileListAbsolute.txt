@@ -1,0 +1,11 @@
+/Users/cmartins/Stuff/pc/isel-leic-pc-s1920v-li51n/src/tcp/echo-raw/server/bin/Debug/netcoreapp3.1/server
+/Users/cmartins/Stuff/pc/isel-leic-pc-s1920v-li51n/src/tcp/echo-raw/server/bin/Debug/netcoreapp3.1/server.deps.json
+/Users/cmartins/Stuff/pc/isel-leic-pc-s1920v-li51n/src/tcp/echo-raw/server/bin/Debug/netcoreapp3.1/server.runtimeconfig.json
+/Users/cmartins/Stuff/pc/isel-leic-pc-s1920v-li51n/src/tcp/echo-raw/server/bin/Debug/netcoreapp3.1/server.runtimeconfig.dev.json
+/Users/cmartins/Stuff/pc/isel-leic-pc-s1920v-li51n/src/tcp/echo-raw/server/bin/Debug/netcoreapp3.1/server.dll
+/Users/cmartins/Stuff/pc/isel-leic-pc-s1920v-li51n/src/tcp/echo-raw/server/bin/Debug/netcoreapp3.1/server.pdb
+/Users/cmartins/Stuff/pc/isel-leic-pc-s1920v-li51n/src/tcp/echo-raw/server/obj/Debug/netcoreapp3.1/server.csprojAssemblyReference.cache
+/Users/cmartins/Stuff/pc/isel-leic-pc-s1920v-li51n/src/tcp/echo-raw/server/obj/Debug/netcoreapp3.1/server.AssemblyInfoInputs.cache
+/Users/cmartins/Stuff/pc/isel-leic-pc-s1920v-li51n/src/tcp/echo-raw/server/obj/Debug/netcoreapp3.1/server.AssemblyInfo.cs
+/Users/cmartins/Stuff/pc/isel-leic-pc-s1920v-li51n/src/tcp/echo-raw/server/obj/Debug/netcoreapp3.1/server.dll
+/Users/cmartins/Stuff/pc/isel-leic-pc-s1920v-li51n/src/tcp/echo-raw/server/obj/Debug/netcoreapp3.1/server.pdb

@@ -159,8 +159,10 @@ class JsonEchoServer {
         var listener = new TcpListener(IPAddress.Loopback, SERVER_PORT);
         var listenTask = ListenAsync(listener);
         Console.Write("---hit <enter> to shutdown the server...");
-        Console.ReadLine();
+        await Console.In.ReadLineAsync();
+		// Shutdown the server graciously
         listener.Stop();
+		// Wait until all accepted connections are served
         await listenTask;
     }
 }

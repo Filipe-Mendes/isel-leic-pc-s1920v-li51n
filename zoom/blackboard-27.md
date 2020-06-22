@@ -7,7 +7,11 @@ ___
 
 - Sugestões para definir a estrutura da implementação de uma _transfer queue_ com interface assíncrona, que é necessário na resolução da terceira série de exercícios.
 
-### Servidores TCP _Multithreaded_
+### Servidores TCP Escaláveis
+
+- Usando o .NET _Framework_ e os métodos assíncronos do C# é simples desenhar um servidor TCP escalável, qualquer que seja a sua funcionalidade. A garantia de escalabilidade decorre do seguinte:
+
+	 - Todo
 
 ###_Sockets_ TCP:
 

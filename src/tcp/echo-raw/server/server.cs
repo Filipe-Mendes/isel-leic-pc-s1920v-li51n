@@ -202,7 +202,7 @@ public class TcpMultiThreadedTapEchoServer {
 	/**
 	 * Server entry point
 	 */
-    public static void Main() {
+    public static async Task Main() {
 		
 		TcpMultiThreadedTapEchoServer echoServer = new TcpMultiThreadedTapEchoServer();
 		
@@ -216,11 +216,10 @@ public class TcpMultiThreadedTapEchoServer {
 		Task listenTask = echoServer.ListenAsync(cts.Token);
 
         /**
-         * Wait a <enter> from the console to terminate the server.
+         * Wait a <enter> press from the console to terminate the server.
          */
-
         Console.WriteLine("--Hit <enter> to exit the server...");
-        Console.ReadLine();
+        await Console.In.ReadLineAsync();
 		
 		/**
 		 * Shutdown the server and wait until all processing terminates 
@@ -228,7 +227,7 @@ public class TcpMultiThreadedTapEchoServer {
 		echoServer.ShutdownAndWaitTermination(listenTask, cts);
 		
         // Display the number of requests processe.
-        Console.WriteLine($"--processed requests: {echoServer.requestCount}");
+        Console.WriteLine($"--{echoServer.requestCount} requests where processed");
     }
 }
 
