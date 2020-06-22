@@ -4,7 +4,6 @@
  * Client of the TCP JSON echo server.
  *
  * To build this client as a .NET Core project:
- *
  *   1. Set the directory where the file client.cs resides as the current directory 
  *   2. To create the project file (<current-dir-name>.csproj) execute : dotnet new console<enter>
  *   3. Remove the file "Program.cs"
@@ -14,7 +13,6 @@
  *
  * Note: When using Visual Studio, add the Newtonsoft.Json package, consulting:
  *    https://docs.microsoft.com/en-us/nuget/quickstart/install-and-use-a-package-in-visual-studio
- *
  *
  * Carlos Martins, June 2020
  **/

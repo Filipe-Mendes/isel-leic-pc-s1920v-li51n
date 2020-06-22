@@ -6,14 +6,12 @@
  *
  *
  * To build this client as a .NET Core project:
- *
  *   1. Set the directory where the file client.cs resides as the current directory 
  *   2. To create the project file (<current-dir-name>.csproj) execute : dotnet new console<enter>
  *   3. Remove the file "Program.cs"
  *   4. To add the NuGet package Newtonsoft.Json to the project execute: dotnet add package Newtonsoft.Json<enter>
  *   5. To build the executable execute: dotnet build<enter>
  *   6. To run the executable execute: dotnet run<enter> 
- *
  *
  * Carlos Martins, June 2020
  *

@@ -7,11 +7,20 @@ ___
 
 - Sugestões para definir a estrutura da implementação de uma _transfer queue_ com interface assíncrona, que é necessário na resolução da terceira série de exercícios.
 
+## .NET _Core_
+
+- O .NET _Core_ é uma versão _cross-platform_ do .NET _Framework_ que permite desenvolver _websites_, serviços e aplicações consola nas plataformas _Linux_, _macOS e _Windows_. Está disponível para _download_ em [.NET _Core_](https://dotnet.microsoft.com/download). Nos exemplos desta aula vamos utilizar o .NET _Core_.
+
 ### Servidores TCP Escaláveis
 
-- Usando o .NET _Framework_ e os métodos assíncronos do C# é simples desenhar um servidor TCP escalável, qualquer que seja a sua funcionalidade. A garantia de escalabilidade decorre do seguinte:
+- Usando o .NET _Framework_ e os métodos assíncronos do C# torna-se simples desenhar um servidor TCP escalável, qualquer que seja a sua funcionalidade. A garantia de escalabilidade decorre do facto de não ser necessário bloquear as _worker thread_ para fazer sincronização de controlo. (Neste desenho, consideramos ser razoável usar sincronizadoes com interface síncrona na sincronazão no acesso a dados partilhados mutáveis). Nestas condições, o _thread pool_ do .NET _Framework_ terá **quase sempre** condições para utilizar o número óptimo de _worker threads_. (O **quase sempre** decorre do facto de poder haver bloqueios das _worker thread_ na sincronização no acesso aos dados partilhados mutáveis.)
 
-	 - Todo
+- No ficheiro [server.cs](https://github.com/carlos-martins/isel-leic-pc-s1920v-li51n/blob/master/src/tcp/echo-raw/server/server.cs) consta uma implementação de um servidor de eco (usando _bytes_ na comunicação) escalável que a seguir iremos detalhar os aspectos relevantes da sua implementação (TODO).
+
+#### Servidor TCP 
+## Implementação
+
+- Nesta aula vamos apresentar 
 
 ###_Sockets_ TCP:
 

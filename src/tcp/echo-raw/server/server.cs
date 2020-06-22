@@ -3,14 +3,13 @@
  * ISEL, LEIC, Concurrent Programming
  *
  * A TCP multithreaded server based on TAP interfaces and C# asynchronous methods.
- * To build this client as a .NET Core project:
  *
+ * To build this server as a .NET Core project:
  *   1. Set the directory where the file server.cs resides as the current directory 
  *   2. To create the project file (<current-dir-name>.csproj) execute : dotnet new console<enter>
  *   3. Remove the file "Program.cs"
  *   4. To build the executable execute: dotnet build<enter>
  *   5. To run the executable execute: dotnet run<enter> 
- *
  *
  * Carlos Martins, June, 2020
  **/
