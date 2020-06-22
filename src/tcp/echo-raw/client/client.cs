@@ -43,7 +43,7 @@ class TcpEchoClientAsync {
 	private static async Task SendRequestAndReceiveResponseAsync(string server, string requestMessage) {		
 		using (TcpClient connection = new TcpClient()) {
 			try {
-				// Star a stop watch timer
+				// Start a stop watch timer
 				Stopwatch sw = Stopwatch.StartNew();
 			
 				/**
@@ -51,10 +51,10 @@ class TcpEchoClientAsync {
 				 */		
 				await connection.ConnectAsync(server, SERVER_PORT);
 				NetworkStream stream = connection.GetStream();
-			
+				
 				/**
-			 	 * Translate the message to a byte stream and send it to the server.
-			 	 */
+				 * Translate the message to a byte stream and send it to the server.
+				 */
 				byte[] requestBuffer = Encoding.ASCII.GetBytes(requestMessage);
 				await stream.WriteAsync(requestBuffer, 0, requestBuffer.Length);
 				Console.WriteLine($"-->[{requestMessage}]");         
@@ -69,7 +69,7 @@ class TcpEchoClientAsync {
 				sw.Stop();
 				Interlocked.Increment(ref requestCount);
 			} catch (Exception ex) {
-					Console.WriteLine($"***{ex.GetType().Name}: {ex.Message}");		
+				Console.WriteLine($"***{ex.GetType().Name}: {ex.Message}");		
 			}
 		}
 	}
