@@ -35,25 +35,25 @@ using Newtonsoft.Json.Linq;
  * The type that represents a JSON request
  */
 public class Request {
-    public String Method { get; set; }
-    public Dictionary<String, String> Headers { get; set; }
-    public JObject Payload { get; set; }
-
-    public override String ToString() {
-        return $"Method: {Method}, Headers: {Headers}, Payload: {Payload}";
-    }
+	public String Method { get; set; }
+	public Dictionary<String, String> Headers { get; set; }
+	public JObject Payload { get; set; }
+	
+	public override String ToString() {
+		return $"Method: {Method}, Headers: {Headers}, Payload: {Payload}";
+	}
 }
 
 /**
  * The type that represents a JSON response
  */
 public class Response {
-    public int Status { get; set; }
-    public Dictionary<String, String> Headers { get; set; }
-    public JObject Payload { get; set; }
-
+	public int Status { get; set; }
+	public Dictionary<String, String> Headers { get; set; }
+	public JObject Payload { get; set; }
+	
 	public override String ToString() {
-        return $"Status: {Status}, Headers: {Headers}, Payload: {Payload}";
+		return $"Status: {Status}, Headers: {Headers}, Payload: {Payload}";
 	}
 }    
 
@@ -61,10 +61,9 @@ public class Response {
  * Represents the payload of the request message
  */
 public class RequestPayload {
-
 	public int Number { get; set; }
 	public String Text { get; set; }
-
+	
 	public override String ToString() {
 		return $"[ Number: {Number}, Text: {Text} ]";
 	}
@@ -85,7 +84,7 @@ class JsonEchoClient {
 	 */
 	static async Task SendRequestAndReceiveResponseAsync(string server, RequestPayload payload) {
 		/**
-		 * Create a TcpClient socket in order to connectto the echo server.
+		 * Create a TcpClient socket in order to connect to the echo server.
 		 */
 		using (TcpClient connection = new TcpClient()) {
 			try  {
@@ -93,7 +92,6 @@ class JsonEchoClient {
 				Stopwatch sw = Stopwatch.StartNew();
 			
 				// connect socket to the echo server.
-						
 				await connection.ConnectAsync(server, SERVER_PORT);
 
 				// Create and fill the Request with "payload" as Payload
@@ -108,20 +106,20 @@ class JsonEchoClient {
 				request.Headers.Add("timeout", "10000");
 
 				/**
-			 	 * Translate the message to JSON and send it to the echo server.
-			 	 */
+				 * Translate the message to JSON and send it to the echo server.
+				 */
 				JsonTextWriter writer = new JsonTextWriter(new StreamWriter(connection.GetStream()));
 				serializer.Serialize(writer, request);
 				Console.WriteLine($"-->{payload.ToString()}");         
 				await writer.FlushAsync();
 			
 				/**
-			 	 * Receive the server's response and display it.
-			 	 */
-            	JsonTextReader reader = new JsonTextReader(new StreamReader(connection.GetStream())) {
-                	// Configure reader to support reading multiple top-level objects
-                	SupportMultipleContent = true
-            	};
+				 * Receive the server's response and display it.
+				 */
+				JsonTextReader reader = new JsonTextReader(new StreamReader(connection.GetStream())) {
+					// Configure reader to support reading multiple top-level objects
+					SupportMultipleContent = true
+				};
 				try {
 					// Consume any bytes until start of JSON object ('{')
 					do {
@@ -129,24 +127,23 @@ class JsonEchoClient {
 					} while (reader.TokenType != JsonToken.StartObject &&
 							 reader.TokenType != JsonToken.None);
 					if (reader.TokenType == JsonToken.None) {
-                		Console.WriteLine("***error: reached end of input stream, ending.");
-                    	return;
-                	}
+						Console.WriteLine("***error: reached end of input stream, ending.");
+						return;
+					}
+					
 					/**
-				 	 * Read the response JSON object
-					 */
+					 * Read the response JSON object
+					*/
 					JObject jresponse = await JObject.LoadAsync(reader);
 					sw.Stop();
 				
 					/**
-				 	 * Back to the .NET world
-				 	 */
-                	Response response = jresponse.ToObject<Response>();
+					 * Back to the .NET world
+					 */
+					Response response = jresponse.ToObject<Response>();
 					request = response.Payload.ToObject<Request>();
 					RequestPayload recoveredPayload = request.Payload.ToObject<RequestPayload>();
-
 					Console.WriteLine($"<--{recoveredPayload.ToString()}, elapsed: {sw.ElapsedMilliseconds} ms");
-
 				} catch (JsonReaderException jre) {
 					Console.WriteLine($"***error: error reading JSON: {jre.Message}");
 				} catch (Exception e) {

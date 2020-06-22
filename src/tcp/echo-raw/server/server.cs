@@ -67,10 +67,9 @@ public class TcpMultiThreadedTapEchoServer {
 	private async Task ServeConnectionAsync(TcpClient connection,
 											CancellationToken cToken = default(CancellationToken)) { 
 		using (connection) {
-    		try {
+			try {
 				// Get a stream for reading and writing through the socket.
 				NetworkStream stream = connection.GetStream();
-			
 				byte[] requestBuffer = new byte[BUFFER_SIZE];
 				
 				// Receive the request (we know that it is smaller than 1024 bytes);
@@ -78,32 +77,30 @@ public class TcpMultiThreadedTapEchoServer {
 				
 				Stopwatch sw = Stopwatch.StartNew();
 
-            	// Convert the request to ASCII and display it.
-            	string request = Encoding.ASCII.GetString(requestBuffer, 0, bytesRead);
-            	Console.WriteLine($"-->[{request}]");
-
-            	/**
-             	 * Simulate asynchornously a random service time, and send response to the client
-             	 */
-  				await Task.Delay(random.Value.Next(MIN_SERVICE_TIME, MAX_SERVICE_TIME), cToken);
-            	
-				string response = request.ToUpper();
-            	Console.WriteLine($"<--[{response}({sw.ElapsedMilliseconds} ms)]");
-            	byte[] responseBuffer = Encoding.ASCII.GetBytes(response);
+				// Convert the request to ASCII and display it.
+				string request = Encoding.ASCII.GetString(requestBuffer, 0, bytesRead);
+				Console.WriteLine($"-->[{request}]");
 				
+				/**
+				 * Simulate asynchornously a random service time, and send response to the client
+				 */
+				await Task.Delay(random.Value.Next(MIN_SERVICE_TIME, MAX_SERVICE_TIME), cToken);
+				
+				string response = request.ToUpper();
+				Console.WriteLine($"<--[{response}({sw.ElapsedMilliseconds} ms)]");
+				byte[] responseBuffer = Encoding.ASCII.GetBytes(response);
 				await stream.WriteAsync(responseBuffer, 0, responseBuffer.Length);
 				// Increment the number of processed requests.
 				Interlocked.Increment(ref requestCount);
-        	} catch (Exception ex) {
-            	Console.WriteLine($"***{ex.GetType().Name}: {ex.Message}");
+			} catch (Exception ex) {
+				Console.WriteLine($"***{ex.GetType().Name}: {ex.Message}");
 			}
 		}
 	}
 
 	/**
  	 * Asynchronous method that listens for connections.
-	 * This method limits, by design, the maximum number of simultaneous
-	 * connections.
+	 * This method limits, by design, the maximum number of simultaneous connections.
 	 */
 	public async Task ListenAsync(CancellationToken cToken) {
 		var startedTasks = new HashSet<Task>();
@@ -146,7 +143,7 @@ public class TcpMultiThreadedTapEchoServer {
 			startedTasks.RemoveWhere(task => task.IsCompleted);
             
 			// When there is only one task active (the "shutdown task"),
-		    // finish this method, in order to complete the "listenTask"
+			// finish this method, in order to complete the "listenTask"
 			if (startedTasks.Count <= 1)
 				break;
 			await Task.WhenAny(startedTasks);
@@ -155,8 +152,7 @@ public class TcpMultiThreadedTapEchoServer {
         
 		/**
 	 	 * Before return, wait for completion of processing of all accepted connections.
-		 */
-		
+		 */	
 		if (startedTasks.Count > 0)
         	await Task.WhenAll(startedTasks);
 	}
@@ -194,32 +190,31 @@ public class TcpMultiThreadedTapEchoServer {
 	/**
 	 * Server entry point
 	 */
-    public static async Task Main() {
-		
+	public static async Task Main() {
 		TcpMultiThreadedTapEchoServer echoServer = new TcpMultiThreadedTapEchoServer();
 		
- 		// The cancellation token source used to shutdonw the server.
+		// The cancellation token source used to shutdonw the server.
 		CancellationTokenSource cts = new CancellationTokenSource();
 		
-        /**
-         * Start listen and processing requests.
+		/**
+		 * Start listen and processing requests.
 		 * This is an asynchronous method that returns on the first await that will blocks.
-         */
+		*/
 		Task listenTask = echoServer.ListenAsync(cts.Token);
-
-        /**
-         * Wait a <enter> press from the console to terminate the server.
-         */
-        Console.WriteLine("--Hit <enter> to exit the server...");
-        await Console.In.ReadLineAsync();
 		
 		/**
-		 * Shutdown the server and wait until all processing terminates 
-         */
-		await echoServer.ShutdownAndWaitTerminationAsync(listenTask, cts);
+		 * Wait an <enter> press from the console to terminate the server.
+		 */
+		Console.WriteLine("--Hit <enter> to exit the server...");
+		await Console.In.ReadLineAsync();
 		
-        // Display the number of requests processe.
-        Console.WriteLine($"--{echoServer.requestCount} requests where processed");
-    }
+		/**
+		 * Shutdown the server and wait until all processing terminates
+		 */
+		await echoServer.ShutdownAndWaitTerminationAsync(listenTask, cts);
+			
+		// Display the number of requests processed
+		Console.WriteLine($"--{echoServer.requestCount} requests where processed");
+	}
 }
 
