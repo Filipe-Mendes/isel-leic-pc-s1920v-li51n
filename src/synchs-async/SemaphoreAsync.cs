@@ -125,15 +125,16 @@ public class SemaphoreAsync {
 		List<AsyncAcquire> satisfied = null;
 		while (asyncAcquires.Count > 0) {
 			AsyncAcquire acquire = asyncAcquires.First.Value;
-			// Check if available permits allow satisfy this request
+			// Check if available permits allow satisfy this async request
 			if (acquire.acquires > permits)
 				break;
-			// Remove the request from the queue
+			// Remove the async request from the queue
 			asyncAcquires.RemoveFirst();
 			
 			// Update permits and mark acquire as done
 			permits -= acquire.acquires;
 			acquire.done = true;
+			// Add the async acquire to the result list
 			if (satisfied == null)
 					satisfied = new List<AsyncAcquire>(1);
 			satisfied.Add(acquire);
@@ -217,15 +218,20 @@ public class SemaphoreAsync {
 		if (acquires > maxPermits)
 			return argExceptionTask;			 
 		lock(theLock) {
+			// If the queue is empty ans sufficiente authorizations are available,
+			// the acquire can be satisfied immediatelly; so, the field permits is
+			// updated and a completed task is returned with a result of true.
 			if (asyncAcquires.Count == 0 && permits >= acquires) {
 				permits -= acquires;
 				return trueTask;
 			}
-            // If the acquire was specified as immediate, return failure
+            // If the acquire was specified as immediate, return completed task with
+			// a result of false, which means timeout.
 			if (timeout == 0)
 				return falseTask;
 			
-			// If the cancellation was already requested return a task in the Canceled state
+			// If the cancellation was already requested return a a completed task in
+			// the Canceled state
 			if (cToken.IsCancellationRequested)
 				return Task.FromCanceled<bool>(cToken);
 						
@@ -272,15 +278,17 @@ public class SemaphoreAsync {
 	 * Releases the specified number of permits
 	 */
 	public void Release(int releases = 1) {
-		// A list to hold temporarily satisfied asynchronous operations 
+		// A list to hold temporarily the already satisfied asynchronous operations 
 		List<AsyncAcquire> satisfied = null;
 		lock(theLock) {
-			if (permits + releases > maxPermits)
+			// Validate argument
+			if (permits + releases < permits || permits + releases > maxPermits)
 				throw new InvalidOperationException("Exceeded the maximum number of permits");	
 			permits += releases;
+			// Satisfy the pending async acquires that the current value of permits allows.
 			satisfied = SatisfyPendingAsyncAcquires();
 		}
-		// Complete satisfied requests without owning the lock
+		// After release the lock, complete the tasks underlying all satisfied async acquires
 		if (satisfied != null)
 			CompleteSatisfiedAsyncAcquires(satisfied);
 	}
