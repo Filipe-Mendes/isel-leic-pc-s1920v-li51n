@@ -215,7 +215,7 @@ public class SemaphoreAsync {
 	public Task<bool> AcquireAsync(int acquires = 1, int timeout = Timeout.Infinite,
 								   CancellationToken cToken = default(CancellationToken)) {
 		// Validate the argument "acquires"
-		if (acquires > maxPermits)
+		if (acquires < 1 || acquires > maxPermits)
 			return argExceptionTask;			 
 	
 		lock(theLock) {
@@ -356,9 +356,9 @@ public class SemaphoreAsync {
 		
 - Depois de adquirir a posse do _lock_, este método começa por testar se o _async acquire_ já foi completado ou cancelado, isto é, se o campo `AsyncAcquire.done` é igual a `true`. Este método, que é invocado assincronamente relativamente aos metodos `AcquireAsync`, `Release` ou ao outro _cancellation handler_, pode encontrar o respectivo _async acquire_ já satisfeito ou cancelado, situação em que não há nada para fazer.
 
-- Se o _async acquire_ ainda estiver activo, remove-o da fila de espera e marca-o como completado. Face à semântica das operações _acquire_ e _release_ desta implementação de semáforo, é possível que o cancelamente do _async acquire_ que se encontra à cabeça da fila de espera, crie condições para satisfazer _async acquire_ que se encontra a seguir na fila de espera. Assim, este método testa se existem _async acquires_ em fila de espera e em caso afirmativo se o número de autorizações sob custódia do semáforo e suficiente para satisfazer o _async acquire_ que se encontra, agora, à cabeça fila; em caso afirmativo, é invocado o método `SatisfyPendingAsyncAcquires` para completar todos os _async acquires_ que podem ser satisfeitos como o número de autorizações disponíveis.
+- Se o _async acquire_ ainda estiver activo, é removido da fila de espera e marcado como completo. Tendo em consideração à semântica das operações _acquire_ e _release_ adoptadas nesta implementação de semáforo, é possível que o cancelamento do _async acquire_ que se encontra à cabeça da fila de espera crie condições para satisfazer outros _async acquires_ que se encontrem a seguir na fila de espera. Assim, este método testa se existem _async acquires_ em fila de espera e, em caso afirmativo, testa se o número de autorizações disponíveis é suficiente para satisfazer o _async acquire_ que se encontra, agora, à cabeça fila; em caso afirmativo, é invocado o método `SatisfyPendingAsyncAcquires` para completar todos os _async acquires_ que possam ser satisfeitos como o número de autorizações correntemente disponíveis.
 
-- Depois de libertado o _lock_, se o cancelamento teve sucesso, completa-se o respectivo processamento, nomedamente: completa-se as _tasks_ do _async acquires_ eventualmente satisfeitos; invoca-se o método `AsyncAcquire.Dispose` para libertar os recursos associados aos _cancellation handlers_ e, finalmente, completa-se a _task_ subjacente no estado `RanToCompletion` com o resultado `false` no caso do cancelamento ter sido por _timeout_ ou completa-se a _task_ no estado `Canceled` se o cancelamento foi feito por via do _cancellation token_.
+- Depois de libertar o _lock_, se o cancelamento teve sucesso, completa-se o respectivo processamento, nomedamente: completa-se as _tasks_ do _async acquires_ eventualmente satisfeitos; invoca-se o método `AsyncAcquire.Dispose` para libertar os recursos associados aos _cancellation handlers_ e, finalmente, completa-se a _task_ subjacente no estado `RanToCompletion` com o resultado `false` no caso do cancelamento ter sido por _timeout_ ou completa-se a _task_ no estado `Canceled` se o cancelamento foi feito por via do _cancellation token_.
 
 - Para terminar a implementação do semáforo com interfaces assíncrona e síncrona, falta disutir a implementaçao da interface síncrona com base na interface assíncrona, o que vamos fazer a seguir.
 
@@ -402,9 +402,9 @@ public class SemaphoreAsync {
 	}
 ```
 
-- Este método começa por adquirir o _lock_ e depois faz uma pesquisa sequencial da fila de espera para ver se existe algum _async acquire_ cuja _task_ seja a que foi passada como argumento. Em caso afirmativo, realiza o processamento normal de cancelamento já descrito no método anterior e devolve `true`; se o _async acquire_ já tiver sido completado ou cancelado, o método não faz nada e devolve `false`.
+- Este método começa por adquirir o _lock_ e depois faz uma pesquisa sequencial na fila de espera para ver localizar o _async acquire_ que tem subjacente a _task_ passada como argumento. Se o _async acquire_ for localizado, é realizado o processamento normal de cancelamento, já descrito no método anterior, e o método devolve `true`; se o _async acquire_ já não estiver na fila de espera (porque já foi completado ou cancelado), não é feito nenhum processamento e o método devolve `false`.
 
-- O método `Acquire` permite adquirir autorizações do semáforo com interface síncrona e cujo código é o seguinte:
+- O método `Acquire` permite adquirir autorizações do semáforo com interface síncrona sendo o código apresentado a seguir:
 
 ```C#
     /**
@@ -452,17 +452,267 @@ public class SemaphoreAsync {
 
 ```
 
-- Este método começa por invocar a operação _acquire_ assincronamente invocando o método `AcquireAsync` obtendo a respectiva _task_. A seguir é invocada a propriedade `Task<bool>.Result` para esperar que a operação assíncrona termine e obter o respectivo resultado que este método deve devolver.
+- Este método começa por invocar o método `AcquireAsync` para realizar a operação _acquire_ assincronamente e armazena em `acquireTask` a _task_ que representa a operação assíncrona. A seguir é invocada a propriedade `Task<bool>.Result`, que aguardar que a operação assíncrona termine e devolve o respectivo resultado, que será o valor de retorno do método `Acquire`.
 	
-- A maior parte do código deste método deve-se ao facto de ser possível a _thread_ corrente ser interrompoida enquanto está bloqueada a aguardar a conclusão da operação assíncrona. Por isso o acesso à propriedade `Task<bool>.Result` está dentro de um bloco _try_ que especifia _exception handlers_ para as excepções `ThreadInterruptedExecption` e `AggregateException`.
+- A maior parte do código deste método é para tratar a circunstância da _thread_ corrente poder ser interrompida enquanto está bloqueada a aguardar a conclusão da operação assíncrona. Por isso o acesso à propriedade `Task<bool>.Result` está dentro de um bloco _try_ que especifica _exception handlers_ para as excepções `ThreadInterruptedExecption` e `AggregateException`.
 
-- Se o acesso à propriedade `Task<bool>.Result` lançar a excepção `AggregateException`, isso indica que foi especificada a intenção de adquirir um número de autorizações superior ao núnmero máximo de autorizações especificado aquando a criação do semáforo, pelo que o método `Acquire` lança a excepção definida pela propriedade `AggregateException.InnerException`, que neste caso será uma instância do tipo `ArgumentException`.
+- Se o acesso à propriedade `Task<bool>.Result` lançar a excepção `AggregateException`, isso indica que foi especificado um número de autorizações menor do que um ou superior ao número máximo de autorizações que o semáforo pode ter sob sua custódia. Nesta situação, o método `AcquireAsync` lança uma `AggregateException` que envolve a excepção `ArgumentException`. Assim, em termos genéricos, o método síncrono implementado por este padrão de desenho deverá propagar a excepção que representada pela propriedade `AggregateException.InnerException`.
 
-- Se a _thread_ que invoca o método `Acquire` for interrompida enquando aguarda a conclusão da operação assíncrona, o acesso à propriedade `Task<bool>.Result` lança a excepção `ThreadInterruptedException`. Como resposta, é invocado o método `TryCancelAcquireAsyncByTask` para tentar cancelar a operação de _acquire_ assíncrona. Se a operação assíncrona tiver sido cancelada, o método `Acquire` termina, lançando `ThreadInterruptedException`. No caso contrário, é necessário aguardar incondicionalmente o resultado da operação _acquire_ assíncrona que pode ser qualquer um dos resultados possíveis; antes de devolver esse resultado a _thread_ que chamou o método `Acquire` deve garantir que a interrupção não se perde, por isso é invocado o método `Thread.Interrupt` sobre  `Thread.CurrentThread`.
+- Se a _thread_ que invoca o método `Acquire` for interrompida enquando aguarda a conclusão da operação assíncrona, o acesso à propriedade `Task<bool>.Result` lança a excepção `ThreadInterruptedException`. Como resposta, é invocado o método `TryCancelAcquireAsyncByTask` para tentar cancelar a operação _acquire_ assíncrona. Se a operação assíncrona for cancelada com sucesso, o método `Acquire` termina, lançando `ThreadInterruptedException`. No caso contrário, é necessário aguardar incondicionalmente pelo resultado da operação _acquire_ assíncrona que poderá ser qualquer um dos resultados possíveis; antes de devolver esse resultado a _thread_ que chamou o método `Acquire` deve garantir que a interrupção não se perde, por isso é invocado o método `Thread.Interrupt` sobre  `Thread.CurrentThread`.
  
 ## Implementação de Sincronizadores com Interface Assíncrona em _Java_
  
- - Xxx
+- A implementação em _Java_ de sincronizadores com interface assíncrona segue o padrão de desenho apresentado para o .NET _Framework_, com algumas adaptações, nomeadamente:
+
+	- Em _Java_, o tipo `java.util.concurrent.CompletableFuture<T>` oferece funcionalidade equivalente aos tipos `System.Threading.Tasks.Task`, `System.Threading.Task<TResult>` e `System.Threading.TaskCompletionSource<TResult> do .NET _Framework_.
+	
+	- O _Java_ não define nenhum enquadramento para implementar o cancelamento de operações assíncronas, como acontece no .NET _Framework_. Assim foi acrescentada à interface assíncrona um método para accionar o cancelamento - `tryCancelXxxAsync` - que recebe como argumento a instância do `CompletableFuture<T>` que representa a operação assíncrona.
+	
+	- Para suportar a funcionalidade de _timeout_ em _Java_ não foi usada a classe `java.util.Timer`, porque a respectiva implementação cria uma _background thread_ por cada instância da classe `Timer`. Na nossa implementação, usamos uma instância da classe `java.util.concurrent.ScheduledThreadPoolExecutor`, configurada com uma única _worker thread_, para suportar todos os _timers_. (A classe `System.Threading.Timer`, do .NET _Framework_, tem uma implementação semelhante.)
+	
+
+### Implementação de um Semáforo com Interface Assíncrona em _Java_
+
+- Começamos por apresentar a classe `Delayer` que vai ser usada para implementar _timers_, disponível no ficheiro [Delayer.java](https://github.com/carlos-martins/isel-leic-pc-s1920v-li51n/blob/master/src/synchs-async/Delayer.java) e cujo código é o seguinte:
+
+```Java
+
+import java.util.concurrent.*;
+
+/**
+ * This class supports one-shot timers
+ */
+public final class Delayer {
+	
+	/**
+	 * Thread factory used to create the daemon worker thread that
+	 * the timer's callbacks
+	 */
+    private static final class DaemonThreadFactory implements ThreadFactory {
+        public Thread newThread(Runnable runnable) {
+            Thread worker = new Thread(runnable);
+            worker.setDaemon(true);
+            worker.setName("AsyncDelayScheduler");
+            return worker;
+        }
+    }
+	
+	// The scheduled thread pool executor
+    private static final ScheduledThreadPoolExecutor delayer;
+    
+	// Static initializer
+    static {
+        (delayer = new ScheduledThreadPoolExecutor(1, new DaemonThreadFactory())).
+                            setRemoveOnCancelPolicy(true);
+    }
+
+	/**
+	 * Starts a timer sthat fires after the specified delay
+	 */
+    public static ScheduledFuture<?> delay(Runnable command, long delay, TimeUnit unit) {
+        return delayer.schedule(command, delay, unit);
+    }
+}
+
+```
+
+- Esta classe implementa _timers_ e usa a classe `java.util.concurrent.ThreadPoolExecutor` cujo método `schedule` faz o agendamento de `Runnable` que executam após decorrer o tempo especificado como argumento. Este método devolve um objecto que implementa a interface `java.util.concurrent.ScheduledFuture<V>. Esta interface define métodos que permitem, por exemplo, cancelar o _timer_ ou obter o tempo que falta para o _timer_ expirar.
+	
+- Foi definida uma classe que implementa a interface `java.util.concurrent.ThreadFactory` para definir o método de fabrico (`newThread`) da _worker thread_ usado pelo _scheduled thread pool executor_, de modo a configurar estas _threads_ como _daemon_ para que as aplicações possam terminar mesmo que estas _threads_ estejam activas.
+
+- Todos os métodos da classe `Delayer` são estáticos, pelo que a criação do _scheduled thread pool executor_ num inicializador estatico. O _scheduled thread pool executor_ é configurado com uma _worker thread_, com a nossa implementação de `ThreadFactory` e configurado para remover os _timers_ imediatamente da fila no momento do cancelamento.
+
+- A seguir apresentamos a definição da classe `SempahoreAsync` e da classe `AsyncAcquire` usada para representar os _async acquires_ pendentes assim como os restantes campos que definem o estado do semáforo.
+
+```Java
+public class SemaphoreAsync {
+
+	/**
+	 * The type used to represent each pending async acquire
+	 */
+	private class AsyncAcquire extends CompletableFuture<Boolean> implements Runnable {
+		final int acquires; 			// the number of the requested permits
+		ScheduledFuture<?> timer;		// timeout's timer
+		boolean done;					// true when the async request was completed or cancelled
+		
+		/**
+		 * Construct a acquire request object
+		 */
+		AsyncAcquire(int acquires) {
+			this.acquires = acquires;
+		}
+
+		/**
+		 * This is the timeout cancellation handler
+		 */
+		 @Override
+		public void run() {
+			List<AsyncAcquire> satisfied = null;
+			boolean complete = false;
+			synchronized(theLock) {
+				if (!done) {
+					asyncAcquires.remove(this);
+					complete = done = true;
+					if (asyncAcquires.size() > 0 && permits >= asyncAcquires.peek().acquires)
+						satisfied = satisfyPendingAsyncAcquires();
+				}
+			}
+			if (complete) {
+				// Complete previously satisfied requests
+				completeSatisfiedAsyncAcquires(satisfied);
+				// Complete this completable future with false, indicating timeout
+				complete(false);
+			}
+		}
+
+		/**
+		 * Disposes the resources associated with the async acquire
+		 */
+		void close() {
+			if (timer != null)
+				timer.cancel(false);
+		}
+	} 
+	
+	// The lock that synchronizes access to the shared mutable state
+ 	private final Object theLock;
+
+	// The available number of permits	
+	private int permits;
+
+	// The maximum number of permits
+	private final int maxPermits;
+
+	// The queue of pending asynchronous acquires
+	private final LinkedList<AsyncAcquire> asyncAcquires;
+```
+
+- A definição da classe `AsyncAcquire` é semelhante ao que fizemos para o .NET _Framework_, com a excepção de que existem campos relacionados com o cancelamento e de ser conveniente definir nesta classe o _timeout cancellable handler_. A lógica implementada por este _handler_ é exactamente igual ao que fizemos anteriormente para o .NET.
+
+- O método `AsyncAcquire.close` cancela o _timer_ quando existe um definido e o _async acquire_ é satisfeiro ou explicitamente cancelado.
+
+- Também nesta implementação foi conveninte definir instâncias do tipo `CompletableFuture<Boolean` para devolver os resultados constantes, com o seguinte código:
+
+```Java
+	//  Completed futures used to return true and false results and IllegalArgumentException
+    private static final CompletableFuture<Boolean> trueFuture = CompletableFuture.completedFuture(true);
+	private static final CompletableFuture<Boolean> falseFuture = CompletableFuture.completedFuture(false);
+	private static final CompletableFuture<Boolean> illegalArgExceptionFuture =
+			 		CompletableFuture.failedFuture(new IllegalArgumentException("acquires"));
+
+```
+
+- Os contrutores do semáforo e os métodos `satisfyPendingAsyncAcquires` e `completeSatisfiedAsyncAcquires` é exactamente igual à que foi explicada para a implementação usando o .NET _Framework_.
+
+- Devido ao facto de em _Java_ não estar definido um _cancellation framework_, foi acrescentada à interface pública um método que permite cancelar um _async acquire_ pendente, cujo código se apresenta a seguir.
+
+```Java
+	/**
+	 * Try to cancel an asynchronous request identified by the underlying
+	 * completable future.
+	 * 
+	 * Note: This method is used to cancel asynchronous acquires and also to
+	 *       implement the synchronous interface.
+	 */
+	public boolean tryCancelAcquireAsync(CompletableFuture<Boolean> acquireFuture) {
+		AsyncAcquire acquirer = (acquireFuture instanceof AsyncAcquire) ? (AsyncAcquire)acquireFuture : null;
+		List<AsyncAcquire> satisfied = null;
+		boolean complete = false;
+		if (acquirer == null)
+			throw new IllegalArgumentException("acquireFuture");
+		synchronized(theLock) {
+			if (!acquirer.done) {
+				asyncAcquires.remove(acquirer);	// no operation if object is not in the list
+				complete = acquirer.done = true;
+				// Check to see if now, we ca satisfy other pending async acquires
+				if (asyncAcquires.size() > 0 && permits >= asyncAcquires.peek().acquires)
+					satisfied = satisfyPendingAsyncAcquires();
+			}
+		}
+		if (complete) {
+			// Complete the CompletableFutures of satisfied requests
+			completeSatisfiedAsyncAcquires(satisfied);
+			
+			// Dispose resoure and complete completable future exceptionally
+			acquirer.close();
+			acquirer.completeExceptionally(new CancellationException());
+			return true;
+		}
+		return false;
+	}
+```
+
+- A lógica deste método é semelhante à que implementámos anteriormente para o .NET sem haver a necessidade de pesquisar a fila de espera para localizar a respectiva instância do `AsyncAcquire`; como a classe `AsyncAcquire` estende a classe `CompletableFuture<Boolean>` basta fazer uma coerção para obter o `CompletableFuture<>`.
+	
+- O método `doAcquireAsync` é o método que implementa a funcinalidade base do _async acquire_ e o respectivo código é o seguinte:
+
+```Java
+	/**
+	 * Base method to acquire asyncronously the specified number of permits
+	 * enabling, optionally, the timeout.
+	 */
+	private CompletableFuture<Boolean> doAcquireAsync(int acquires, boolean timed, long timeout, TimeUnit unit) {
+		// Validate  the argument acquires
+		if (acquires < 1 || acquires > maxPermits)
+			return illegalArgExceptionFuture;
+				
+		synchronized(theLock) {
+			// If the queue is and there are sufficient permits, update the
+			// permits a returna a CompletableFuture<> completed with true.
+			if (asyncAcquires.size() == 0 && permits >= acquires) {
+				permits -= acquires;
+				return trueFuture;
+			}
+			// The current request must be pending, so we must check for immediate timeout
+			if (timed && timeout == 0)
+				return falseFuture;
+
+			// Create an async acquire object and insert it in the pending queue
+			AsyncAcquire acquirer = new AsyncAcquire(acquires);
+			asyncAcquires.addLast(acquirer);
+
+			/**
+			 * If a timeout was specified, start a timer.
+			 * Since that all paths of code that cancel the timer execute on other
+			 * threads and must aquire the lock, we has the guarantee that the field
+			 * "acquirer.timer" is correctly set when the method AsyncAcquire.close()
+			 * is called.
+			 */
+			if (timed)
+				acquirer.timer = Delayer.delay(acquirer, timeout, unit);
+			return acquirer;
+		}
+	}
+```
+
+- Este método é mais simples que o que apresentámos nas implementação para o .NET _Framework_ porque apenas é suportado o cancelamento por _timeout_. Como implementação dos _timers_ é feita na classe `Delayer`, definida anteriormente, sabemos que os _cancellation handlers_ executam sempre na _worker thread_ do _scheduled thread pool executor_, pelo que o _lock_ dá nas necessárias garantias de visibilidade e atomicidade no acesso ao estado partilhado mutável. 
+
+- O método `release` permite devolver autorizações ao semáfor e o código é o seguinte:
+
+```Java
+	/**
+	 * Release the specified number of permits.
+	 */
+	public void release(int releases) {
+		List<AsyncAcquire> satisfied = null;
+		synchronized(theLock) {
+			if (releases + permits < permits || permits + releases > maxPermits)
+				throw new IllegalStateException("Exceeded the maximum number of permits");
+			permits += releases;
+			satisfied = satisfyPendingAsyncAcquires();
+		}
+		// After we release the lock do the cleanup and complete the released
+		// CompletableFutures.
+		// We do this after release the lock to prevent reentrancy when synchronous
+		// continuations are executed.
+		completeSatisfiedAsyncAcquires(satisfied);
+	}
+	
+```
+
+- A implementação deste método é exactamente igual à que apresentámos anteriormente para o .NET _Framework_.
+
+- 
  
- 
+	
 ____

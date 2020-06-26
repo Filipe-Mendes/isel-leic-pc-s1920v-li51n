@@ -15,6 +15,7 @@ import java.util.LinkedList;
 import java.util.Random;
 import java.io.IOException;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
 
 /**
  * A semaphore with asynchronous and synchronous interfaces
@@ -27,7 +28,7 @@ public class SemaphoreAsync {
 	private class AsyncAcquire extends CompletableFuture<Boolean> implements Runnable {
 		final int acquires; 			// the number of the requested permits
 		ScheduledFuture<?> timer;		// timeout's timer
-		boolean done;					// true when the async request completed
+		boolean done;					// true when the async request was completed or cancelled
 		
 		/**
 		 * Construct a acquire request object
@@ -54,7 +55,7 @@ public class SemaphoreAsync {
 			if (complete) {
 				// Complete previously satisfied requests
 				completeSatisfiedAsyncAcquires(satisfied);
-				// complete this completable future with false, indicating timeout
+				// Complete this completable future with false, indicating timeout
 				complete(false);
 			}
 		}
@@ -80,14 +81,15 @@ public class SemaphoreAsync {
 	// The queue of pending asynchronous acquires
 	private final LinkedList<AsyncAcquire> asyncAcquires;
 
-	//  Completed futures used to return true and false results
+	//  Completed futures used to return true and false results and IllegalArgumentException
     private static final CompletableFuture<Boolean> trueFuture = CompletableFuture.completedFuture(true);
-	private static final CompletableFuture<Boolean> falseFuture = CompletableFuture.completedFuture(false);;
-
+	private static final CompletableFuture<Boolean> falseFuture = CompletableFuture.completedFuture(false);
+	private static final CompletableFuture<Boolean> illegalArgExceptionFuture =
+			 		CompletableFuture.failedFuture(new IllegalArgumentException("acquires"));
+	
 	/**
      * Constructors
      */
-
     public SemaphoreAsync(int initial, int maximum) {
 		// Validate arguments
         if (initial < 0 || initial > maximum)
@@ -112,7 +114,7 @@ public class SemaphoreAsync {
 	/**
 	 *  Satisfy all pending async requests that can now acquire the desired permits.
 	 *
-	 * Note: Tis method is called when the current thread *does* own the lock.
+	 * Note: This method is called when the current thread *does* own the lock.
 	 */
 	private List<AsyncAcquire> satisfyPendingAsyncAcquires() {
 		List<AsyncAcquire> satisfied = null;
@@ -140,6 +142,7 @@ public class SemaphoreAsync {
 	private void completeSatisfiedAsyncAcquires(List<AsyncAcquire> toComplete) {
         if (toComplete != null) {
             for (AsyncAcquire acquirer : toComplete) {
+				// release allocated resources and complte the underlying future
 				acquirer.close();
                 acquirer.complete(true);
             }
@@ -150,9 +153,10 @@ public class SemaphoreAsync {
 	 * Try to cancel an asynchronous request identified by the underlying
 	 * completable future.
 	 * 
-	 * Note: This method is used to implement the synchronous interface.
+	 * Note: This method is used to cancel asynchronous acquires and also to
+	 *       implement the synchronous interface.
 	 */
-	public boolean tryCancelAsyncAcquire(CompletableFuture<Boolean> acquireFuture) {
+	public boolean tryCancelAcquireAsync(CompletableFuture<Boolean> acquireFuture) {
 		AsyncAcquire acquirer = (acquireFuture instanceof AsyncAcquire) ? (AsyncAcquire)acquireFuture : null;
 		List<AsyncAcquire> satisfied = null;
 		boolean complete = false;
@@ -187,9 +191,14 @@ public class SemaphoreAsync {
 	 * Base method to acquire asyncronously the specified number of permits
 	 * enabling, optionally, the timeout.
 	 */
-	private CompletableFuture<Boolean> doAcquireAsync(int acquires, boolean timed,
-													  long timeout, TimeUnit unit) {		
+	private CompletableFuture<Boolean> doAcquireAsync(int acquires, boolean timed, long timeout, TimeUnit unit) {
+		// Validate  the argument acquires
+		if (acquires < 1 || acquires > maxPermits)
+			return illegalArgExceptionFuture;
+				
 		synchronized(theLock) {
+			// If the queue is and there are sufficient permits, update the
+			// permits a returna a CompletableFuture<> completed with true.
 			if (asyncAcquires.size() == 0 && permits >= acquires) {
 				permits -= acquires;
 				return trueFuture;
@@ -221,12 +230,12 @@ public class SemaphoreAsync {
 	public void release(int releases) {
 		List<AsyncAcquire> satisfied = null;
 		synchronized(theLock) {
-			if (permits + releases > maxPermits)
+			if (releases + permits < permits || permits + releases > maxPermits)
 				throw new IllegalStateException("Exceeded the maximum number of permits");
 			permits += releases;
 			satisfied = satisfyPendingAsyncAcquires();
 		}
-		// After release the lock do the cleanup and complete the released
+		// After we release the lock do the cleanup and complete the released
 		// CompletableFutures.
 		// We do this after release the lock to prevent reentrancy when synchronous
 		// continuations are executed.
@@ -289,8 +298,8 @@ public class SemaphoreAsync {
 		try {
             return acquireFuture.get();
         } catch (InterruptedException ie) {
-			// try to cancel the asynchronous request
-			if (tryCancelAsyncAcquire(acquireFuture))
+			// Try to cancel the asynchronous acquire request
+			if (tryCancelAcquireAsync(acquireFuture))
 				throw ie;
 			// The request was already completed or cancelled, so return
 			// the proper result. When waiting for the result we must discard
@@ -301,23 +310,21 @@ public class SemaphoreAsync {
 						return acquireFuture.get();
 					} catch (InterruptedException ie2) {
 						// Ignore further interrupts
-					} catch (Throwable ex) {
-						/**
-						 * We know that this should never happen, because the
-						 * CF<> never is completed with exception.
-						 */
 					}
+					/**
+					 * If the CompletableFuture<> is completed exceptionally we propagate
+					 * the underlying exception.
+					 */
 				} while (true);
 			} finally {
 				// anyway, re-assert the interrupt
 				Thread.currentThread().interrupt();
 			}
-		} catch (Throwable ex) {
-			/**
-			 * We know that this should never happen, because the
-			 * CompletableFuture<> never is completed with exception.
-			 */
-        }
+		}
+		/**
+		 * If the CompletableFuture<> is completed exceptionally we propagate
+		 * the underlying exception.
+		 */
 		return false;
 	}
 

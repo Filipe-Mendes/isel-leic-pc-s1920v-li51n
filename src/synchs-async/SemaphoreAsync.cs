@@ -215,7 +215,7 @@ public class SemaphoreAsync {
 	public Task<bool> AcquireAsync(int acquires = 1, int timeout = Timeout.Infinite,
 								   CancellationToken cToken = default(CancellationToken)) {
 		// Validate the argument "acquires"
-		if (acquires > maxPermits)
+		if (acquires < 1 || acquires > maxPermits)
 			return argExceptionTask;			 
 		lock(theLock) {
 			// If the queue is empty ans sufficiente authorizations are available,
