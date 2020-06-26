@@ -92,19 +92,19 @@ public class SemaphoreAsync {
      */
     public SemaphoreAsync(int initial, int maximum) {
 		// Validate arguments
-        if (initial < 0 || initial > maximum)
-            throw new IllegalArgumentException("initial");
-        if (maximum <= 0)
+		if (initial < 0 || initial > maximum)
+			throw new IllegalArgumentException("initial");
+		if (maximum <= 0)
 			throw new IllegalArgumentException("maximum");
 		// Initialize semaphore's fields
 		this.theLock = new Object();
-	    this.maxPermits = maximum;
-        this.permits = initial;
-        this.asyncAcquires = new LinkedList<>();
-    }
-
-    public SemaphoreAsync(int initial) { this(initial, Integer.MAX_VALUE); }
-
+		this.maxPermits = maximum;
+		this.permits = initial;
+		this.asyncAcquires = new LinkedList<>();
+	}
+	
+	public SemaphoreAsync(int initial) { this(initial, Integer.MAX_VALUE); }
+	
 	public SemaphoreAsync() { this(0, Integer.MAX_VALUE); }
 
 	/**
@@ -140,14 +140,14 @@ public class SemaphoreAsync {
 	 * Note: This method is called when calling thread *does not* own the lock.
 	 */
 	private void completeSatisfiedAsyncAcquires(List<AsyncAcquire> toComplete) {
-        if (toComplete != null) {
-            for (AsyncAcquire acquirer : toComplete) {
+		if (toComplete != null) {
+			for (AsyncAcquire acquirer : toComplete) {
 				// release allocated resources and complte the underlying future
 				acquirer.close();
-                acquirer.complete(true);
-            }
-        }
-    }
+				acquirer.complete(true);
+			}
+		}
+	}
 		
 	/**
 	 * Try to cancel an asynchronous request identified by the underlying
@@ -161,7 +161,7 @@ public class SemaphoreAsync {
 		List<AsyncAcquire> satisfied = null;
 		boolean complete = false;
 		if (acquirer == null)
-			throw new IllegalArgumentException("acquireFuture");
+		throw new IllegalArgumentException("acquireFuture");
 		synchronized(theLock) {
 			if (!acquirer.done) {
 				asyncAcquires.remove(acquirer);	// no operation if object is not in the list
@@ -289,15 +289,15 @@ public class SemaphoreAsync {
 	/**
 	 * Acquire multiple permits synchronously enabling optionally the timeout.
 	 */
-	private boolean doAcquire(int acquires, boolean timed, long timeout, TimeUnit unit) 
+		private boolean doAcquire(int acquires, boolean timed, long timeout, TimeUnit unit) 
 									throws InterruptedException {
-		if (Thread.interrupted())
-			throw new InterruptedException();
+			if (Thread.interrupted())
+				throw new InterruptedException();
 		 
 		CompletableFuture<Boolean> acquireFuture = doAcquireAsync(acquires, timed, timeout, unit); 
 		try {
-            return acquireFuture.get();
-        } catch (InterruptedException ie) {
+			return acquireFuture.get();
+		} catch (InterruptedException ie) {
 			// Try to cancel the asynchronous acquire request
 			if (tryCancelAcquireAsync(acquireFuture))
 				throw ie;
