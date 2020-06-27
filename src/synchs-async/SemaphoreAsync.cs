@@ -394,8 +394,8 @@ public class SemaphoreAsync {
 }
 
 /**
- * A blocking queue with synchronous and asynchronous TAP interface,
- * implemented using asynchronous semaphores and a concurrent queue.
+ * A blocking queue with interfaces asynchronous TAP and synchronous, based on asynchronous
+ * semaphores and in a concurrent queue.
  */
 
 internal class BlockingQueueAsync<T> where T : class {

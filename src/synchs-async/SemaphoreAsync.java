@@ -161,7 +161,7 @@ public class SemaphoreAsync {
 		List<AsyncAcquire> satisfied = null;
 		boolean complete = false;
 		if (acquirer == null)
-		throw new IllegalArgumentException("acquireFuture");
+			throw new IllegalArgumentException("acquireFuture");
 		synchronized(theLock) {
 			if (!acquirer.done) {
 				asyncAcquires.remove(acquirer);	// no operation if object is not in the list
@@ -175,9 +175,9 @@ public class SemaphoreAsync {
 			// Complete the CompletableFutures of satisfied requests
 			completeSatisfiedAsyncAcquires(satisfied);
 			
-			// Dispose resoure and complete completable future exceptionally
+			// Dispose the timer resoure and complete completable future in cancelled state
 			acquirer.close();
-			acquirer.completeExceptionally(new CancellationException());
+			acquirer.cancel(false);
 			return true;
 		}
 		return false;
@@ -289,9 +289,9 @@ public class SemaphoreAsync {
 	/**
 	 * Acquire multiple permits synchronously enabling optionally the timeout.
 	 */
-		private boolean doAcquire(int acquires, boolean timed, long timeout, TimeUnit unit) 
-									throws InterruptedException {
-			if (Thread.interrupted())
+	private boolean doAcquire(int acquires, boolean timed, long timeout, TimeUnit unit) 
+							  throws InterruptedException {
+		if (Thread.interrupted())
 				throw new InterruptedException();
 		 
 		CompletableFuture<Boolean> acquireFuture = doAcquireAsync(acquires, timed, timeout, unit); 
@@ -310,22 +310,19 @@ public class SemaphoreAsync {
 						return acquireFuture.get();
 					} catch (InterruptedException ie2) {
 						// Ignore further interrupts
+					} catch (ExecutionException eex) {
+						// Throw the IllegalArgumentException that caused the ExecutionException. 
+						throw (IllegalArgumentException)eex.getCause();		
 					}
-					/**
-					 * If the CompletableFuture<> is completed exceptionally we propagate
-					 * the underlying exception.
-					 */
 				} while (true);
 			} finally {
 				// anyway, re-assert the interrupt
 				Thread.currentThread().interrupt();
 			}
+		} catch (ExecutionException eex) {
+			// Throw the IllegalArgumentException that caused the ExecutionException. 
+			throw (IllegalArgumentException)eex.getCause();		
 		}
-		/**
-		 * If the CompletableFuture<> is completed exceptionally we propagate
-		 * the underlying exception.
-		 */
-		return false;
 	}
 
 	/**
@@ -372,12 +369,15 @@ class BlockingQueueAsync<T> {
 	private final ConcurrentLinkedQueue<T> data;
 	private final SemaphoreAsync freeSlots, filledSlots;
 
-	// construct the blocking queue
+	// Construct a blocking queue with the specified capacity
 	public BlockingQueueAsync(int capacity) {
 		data = new ConcurrentLinkedQueue<>();
 		freeSlots = new SemaphoreAsync(capacity, capacity);
 		filledSlots = new SemaphoreAsync(0, capacity);
 	}
+
+	// Construct a blocking queue with unbounded capacity
+	public BlockingQueueAsync() { this(Integer.MAX_VALUE); }
 
 	/**
 	 * Asynchronous interface
@@ -571,6 +571,8 @@ class SemaphoreAsyncTests {
                     } catch (InterruptedException ie) {
 						sensedInterrupts[tid]++;
 						continue;
+					} catch (Throwable error) {
+						// This never happens
 					}
 					if (Thread.interrupted())
                       	sensedInterrupts[tid]++;
@@ -788,7 +790,7 @@ class SemaphoreAsyncTests {
 					} catch (IllegalStateException ise) {
 						System.out.printf("***IllegalStateException at consumer: %s%n", ise.getMessage());
 						continue;
-					} catch (Exception e) {
+					} catch (Throwable e) {
 						System.out.printf("***Exception at consumer: %s%n", e.getClass());
 						continue;
 					}
