@@ -1,4 +1,4 @@
-# Aula 26 - Implementação de Sincronizadores com Interfaces Assíncrona e Síncrona
+# Aula 26 - Implementação de Sincronizadores com Interfaces Assíncrona (II)
 
 ___
 
@@ -45,6 +45,10 @@ static async Task<int[]> ComputeAsync(string[] elems, int maxRetries, Cancellati
 	...
 }
 ```
+
+### Implementação de Sincronizadores com Interafce Assíncrona
+
+- Todo o texto sobre este tópico encontra-se no ficheiro [blackboard-25.md](https://github.com/carlos-martins/isel-leic-pc-s1920v-li51n/blob/master/zoom/blackboard-25.md).
 
 ___
 

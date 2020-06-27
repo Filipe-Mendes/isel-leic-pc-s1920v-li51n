@@ -407,7 +407,7 @@ public class SemaphoreAsync {
 - O método `Acquire` permite adquirir autorizações do semáforo com interface síncrona sendo o código apresentado a seguir:
 
 ```C#
-    /**
+	/**
 	 * Acquire one or multiple permits synchronously, enabling, optionally,
 	 * a timeout and/or cancellation.
 	 */
@@ -879,7 +879,7 @@ public class BlockingQueueAsync<T> {
 	}
 ```
 
-- Este método começa por invocar `SemaphoreAsync.acquireAsync` para obter uma autorização do semáforo `freeSlots`. A seguir, agenda uma continuação ao _completable future_ devolvido por aquele método que, por sua vez, acresenta o item de dados à colecção e devolve uma autorização ao semáforo `filledSlots`. Este método retorna o `CompletableFuture<>` que representa à continuação.
+- Este método começa por invocar `SemaphoreAsync.acquireAsync` para obter uma autorização do semáforo `freeSlots`. A seguir, agenda uma continuação ao _completable future_ devolvido por aquele método que, por sua vez, acresenta o item de dados à colecção e devolve uma autorização ao semáforo `filledSlots`. Este método retorna o `CompletableFuture<>` que representa a continuação.
 
 - O método `doTakeAsync` é invocado pelos vários _overloads_ do método `takeAsync` e o seu código é o seguinte:
 
@@ -901,6 +901,6 @@ public class BlockingQueueAsync<T> {
 	}
 ```
 
-- Este método começa por invocar `SemaphoreAsync.acquireAsync` para obter uma autorização do semáforo `filledSlots`. A seguir, agenda uma continuação ao _completable future_ devolvido por aquele método que, por sua vez, remove um item de dados da colecção e devolve uma autorização ao semáforo `freeSlots`. Este método retorna o `CompletableFuture<>` que representa à continuação.
+- Este método começa por invocar `SemaphoreAsync.acquireAsync` para obter uma autorização do semáforo `filledSlots`. A seguir, agenda uma continuação ao _completable future_ devolvido por aquele método que, por sua vez, remove um item de dados da colecção e devolve uma autorização ao semáforo `freeSlots`. Este método retorna o `CompletableFuture<>` que representa a continuação.
 
 ____
