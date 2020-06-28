@@ -58,7 +58,7 @@ public final class Semaphore {
 		if (timeout == 0)
 			return false;
 
-		// if a time out was specified, get a time reference
+		// if a time out was specified, compute the timeout value in nanoseconds
 		boolean timed = timeout > 0;
 		long nanosTimeout = timed ? unit.toNanos(timeout) : 0L;
 		

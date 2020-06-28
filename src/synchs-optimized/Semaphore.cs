@@ -52,8 +52,7 @@ public sealed class Semaphore_ {
 			return false;
 
 		// if a time out was specified, get a time reference
-		TimeoutHolder th = new TimeoutHolder(timeout);
-		
+		TimeoutHolder th = new TimeoutHolder(timeout);		
 		lock(monitor) {
 			
 			// the current thread declares itself as a waiter..
