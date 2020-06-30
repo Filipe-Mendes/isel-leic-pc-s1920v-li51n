@@ -36,18 +36,18 @@ class TcpEchoClientAsync {
 	private static volatile int requestCount = 0;
 
 	/**
-	 * Send a server request and display the response.
+	 * Send a request to the server and display its response.
 	 */
-	private static async Task SendRequestAndReceiveResponseAsync(string server, string requestMessage) {		
+	private static async Task SendRequestAndReceiveResponseAsync(string host, string requestMessage) {		
 		using (TcpClient connection = new TcpClient()) {
 			try {
-				// Start a stop watch timer
+				// Start a stop watch timer to compute the roundtrip time.
 				Stopwatch sw = Stopwatch.StartNew();
 			
 				/**
 			 	 * Connect the TcpClient socket to the server and get the associated stream.
 				 */		
-				await connection.ConnectAsync(server, SERVER_PORT);
+				await connection.ConnectAsync(host, SERVER_PORT);
 				NetworkStream stream = connection.GetStream();
 				
 				/**
