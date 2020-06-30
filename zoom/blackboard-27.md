@@ -78,8 +78,7 @@ public class TcpMultiThreadedTapEchoServer {
 	 * If we want to cancel the processing of all already accepted connections, we
 	 * must propagate the received CancellationToken.
 	*/
-	private async Task ServeConnectionAsync(TcpClient connection,
-											CancellationToken cToken = default(CancellationToken)) { 
+	private async Task ServeConnectionAsync(TcpClient connection, CancellationToken cToken = default(CancellationToken)) { 
 		using (connection) {
 			try {
 				// Get a stream for reading and writing through the client socket.
